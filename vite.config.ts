@@ -6,7 +6,7 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
-    base: '/jcq-fleet-trip-manager/', 
+    base: '/JCQ-FLEET-TRIP-MANAGER/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
