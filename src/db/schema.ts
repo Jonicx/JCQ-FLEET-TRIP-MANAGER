@@ -1,0 +1,223 @@
+import { relations } from 'drizzle-orm';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  integer,
+  numeric,
+  text,
+  timestamp,
+  pgEnum,
+  jsonb,
+  index,
+} from 'drizzle-orm/pg-core';
+
+// ============================================================================
+// 1. ENUMS
+// ============================================================================
+export const truckStatusEnum = pgEnum('truck_status', ['Available', 'On Trip', 'Maintenance']);
+export const driverStatusEnum = pgEnum('driver_status', ['Available', 'On Trip', 'Off Duty']);
+export const tripStatusEnum = pgEnum('trip_status', ['Planned', 'Ongoing', 'Completed']);
+export const expenseTypeEnum = pgEnum('expense_type', ['Fuel', 'Tolls', 'Police/Bribes', 'Food', 'Other']);
+
+// ============================================================================
+// 2. TRUCKS
+// ============================================================================
+export const trucks = pgTable('trucks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  licensePlate: varchar('license_plate', { length: 32 }).notNull().unique(),
+  model: varchar('model', { length: 120 }).notNull(),
+  status: truckStatusEnum('status').default('Available').notNull(),
+  year: integer('year'),
+  capacityTons: numeric('capacity_tons', { precision: 5, scale: 2 }),
+  currentMileage: integer('current_mileage').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// 3. DRIVERS
+// ============================================================================
+export const drivers = pgTable('drivers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  fullName: varchar('full_name', { length: 150 }).notNull(),
+  licenseNumber: varchar('license_number', { length: 50 }).notNull().unique(),
+  phone: varchar('phone', { length: 30 }).notNull(),
+  status: driverStatusEnum('status').default('Available').notNull(),
+  experienceYears: integer('experience_years').default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// 4. TRIPS
+// ============================================================================
+export const trips = pgTable(
+  'trips',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    truckId: uuid('truck_id')
+      .notNull()
+      .references(() => trucks.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    driverId: uuid('driver_id')
+      .notNull()
+      .references(() => drivers.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    status: tripStatusEnum('status').default('Planned').notNull(),
+    origin: varchar('origin', { length: 255 }).notNull(),
+    destination: varchar('destination', { length: 255 }).notNull(),
+    scheduledStart: timestamp('scheduled_start', { withTimezone: true }).notNull(),
+    scheduledEnd: timestamp('scheduled_end', { withTimezone: true }).notNull(),
+    budgetAllocated: numeric('budget_allocated', { precision: 12, scale: 2 }).notNull(),
+    driverPay: numeric('driver_pay', { precision: 10, scale: 2 }).default('0.00').notNull(),
+    cargoType: varchar('cargo_type', { length: 150 }),
+    notes: text('notes'),
+    delayReasons: jsonb('delay_reasons').$type<string[]>().default([]),
+    finalProfitLoss: numeric('final_profit_loss', { precision: 12, scale: 2 }),
+    totalExpensesCost: numeric('total_expenses_cost', { precision: 10, scale: 2 }),
+    totalSparePartsCost: numeric('total_spare_parts_cost', { precision: 10, scale: 2 }),
+    financialFlag: varchar('financial_flag', { length: 20 }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_trips_truck_id').on(table.truckId),
+    index('idx_trips_driver_id').on(table.driverId),
+    index('idx_trips_status').on(table.status),
+    index('idx_trips_scheduled_start').on(table.scheduledStart),
+  ]
+);
+
+// ============================================================================
+// 4b. DYNAMIC TRIP DELAY LOGS
+// ============================================================================
+export const tripDelayLogs = pgTable(
+  'trip_delay_logs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tripId: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    reason: text('reason').notNull(),
+    severity: varchar('severity', { length: 20 }).default('Medium').notNull(),
+    location: varchar('location', { length: 255 }),
+    durationMinutes: integer('duration_minutes').default(0),
+    timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_trip_delay_logs_trip_id').on(table.tripId),
+    index('idx_trip_delay_logs_timestamp').on(table.timestamp),
+  ]
+);
+
+// ============================================================================
+// 5. EXPENSES
+// ============================================================================
+export const expenses = pgTable(
+  'expenses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tripId: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    expenseType: expenseTypeEnum('expense_type').notNull(),
+    amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+    description: text('description'),
+    timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_expenses_trip_id').on(table.tripId),
+    index('idx_expenses_type').on(table.expenseType),
+    index('idx_expenses_timestamp').on(table.timestamp),
+  ]
+);
+
+// ============================================================================
+// 6. SPARE PARTS (Maintenance during trip)
+// ============================================================================
+export const spareParts = pgTable(
+  'spare_parts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tripId: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    partName: varchar('part_name', { length: 255 }).notNull(),
+    price: numeric('price', { precision: 10, scale: 2 }).notNull(),
+    description: text('description'),
+    replacedBy: varchar('replaced_by', { length: 150 }),
+    timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_spare_parts_trip_id').on(table.tripId),
+    index('idx_spare_parts_timestamp').on(table.timestamp),
+  ]
+);
+
+// ============================================================================
+// 7. ORM RELATIONS
+// ============================================================================
+export const trucksRelations = relations(trucks, ({ many }) => ({
+  trips: many(trips),
+}));
+
+export const driversRelations = relations(drivers, ({ many }) => ({
+  trips: many(trips),
+}));
+
+export const tripsRelations = relations(trips, ({ one, many }) => ({
+  truck: one(trucks, {
+    fields: [trips.truckId],
+    references: [trucks.id],
+  }),
+  driver: one(drivers, {
+    fields: [trips.driverId],
+    references: [drivers.id],
+  }),
+  expenses: many(expenses),
+  spareParts: many(spareParts),
+  delayLogs: many(tripDelayLogs),
+}));
+
+export const tripDelayLogsRelations = relations(tripDelayLogs, ({ one }) => ({
+  trip: one(trips, {
+    fields: [tripDelayLogs.tripId],
+    references: [trips.id],
+  }),
+}));
+
+export const expensesRelations = relations(expenses, ({ one }) => ({
+  trip: one(trips, {
+    fields: [expenses.tripId],
+    references: [trips.id],
+  }),
+}));
+
+export const sparePartsRelations = relations(spareParts, ({ one }) => ({
+  trip: one(trips, {
+    fields: [spareParts.tripId],
+    references: [trips.id],
+  }),
+}));
+
+// Inferred TypeScript Model Types
+export type SelectTruck = typeof trucks.$inferSelect;
+export type InsertTruck = typeof trucks.$inferInsert;
+
+export type SelectDriver = typeof drivers.$inferSelect;
+export type InsertDriver = typeof drivers.$inferInsert;
+
+export type SelectTrip = typeof trips.$inferSelect;
+export type InsertTrip = typeof trips.$inferInsert;
+
+export type SelectExpense = typeof expenses.$inferSelect;
+export type InsertExpense = typeof expenses.$inferInsert;
+
+export type SelectSparePart = typeof spareParts.$inferSelect;
+export type InsertSparePart = typeof spareParts.$inferInsert;
+
+export type SelectTripDelayLog = typeof tripDelayLogs.$inferSelect;
+export type InsertTripDelayLog = typeof tripDelayLogs.$inferInsert;

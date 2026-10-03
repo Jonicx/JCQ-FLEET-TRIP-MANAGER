@@ -1,0 +1,6 @@
+{
+  "name": "JCQ Fleet & Trip Manager",
+  "description": "Database schema, model architecture, and operations system for JCQ General Supply Company truck, driver, trip, expense, and spare parts management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
