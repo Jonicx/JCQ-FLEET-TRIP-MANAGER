@@ -3,7 +3,7 @@ import {
   X,
   Navigation2,
   Calendar,
-  DollarSign,
+  Wallet,
   AlertTriangle,
   Receipt,
   Wrench,
@@ -25,7 +25,8 @@ import {
   TripStatus,
   DelayLog,
 } from '../types/database.ts';
-import { formatTZS } from '../utils/currency.ts';
+import { formatTsh } from '../utils/currency.ts';
+import { getDelaySeverityClasses } from '../utils/delaySeverity.ts';
 
 interface TripDetailModalProps {
   trip: EnrichedTrip;
@@ -113,15 +114,13 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
     ? Number(trip.total_spare_parts_cost)
     : trip.spare_parts.reduce((s, sp) => s + Number(sp.price), 0);
 
-  // Exact Formula: Profit/Loss = Budget Allocated - (Driver Pay + Total Expenses + Total Spare Parts Cost)
+  // Finalized budget variance is not actual billed revenue or accounting profit.
   const calculatedProfitLoss = budget - (driverPay + totalExp + totalSpares);
   const profitLoss = isCompleted && trip.final_profit_loss !== undefined
     ? Number(trip.final_profit_loss)
     : calculatedProfitLoss;
 
-  const financialFlag: 'Profitable' | 'Loss' =
-    trip.financial_flag ?? (profitLoss >= 0 ? 'Profitable' : 'Loss');
-  const isProfitable = financialFlag === 'Profitable' || profitLoss >= 0;
+  const isWithinBudget = profitLoss >= 0;
 
   const handleCreateDelay = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +146,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
     setModalError(null);
     const amountNum = parseFloat(expenseAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setModalError('Please enter a valid expense amount greater than TZS 0.');
+      setModalError('Please enter a valid expense amount greater than Tsh 0.');
       return;
     }
     onAddExpense(trip.id, {
@@ -166,7 +165,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
     setModalError(null);
     const priceNum = parseFloat(partPrice);
     if (!partName.trim() || isNaN(priceNum) || priceNum < 0) {
-      setModalError('Please provide a valid part name and non-negative price (TZS 0 or greater).');
+      setModalError('Please provide a valid part / service name and non-negative price (Tsh 0 or greater).');
       return;
     }
     onAddSparePart(trip.id, {
@@ -188,7 +187,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] min-w-0">
+      <div className="modal-readable bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] min-w-0">
         {/* Header */}
         <div className="bg-slate-900 text-white p-3 sm:p-5 border-b border-slate-800">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -197,7 +196,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                 {isCompleted ? (
                   <span
                     className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded tracking-wider flex items-center gap-1 ${
-                      isProfitable
+                      isWithinBudget
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                         : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                     }`}
@@ -205,7 +204,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                     <CheckCircle className="h-3 w-3 inline" />
                     <span>Completed</span>
                     <span className="opacity-60"> </span>
-                    <span>{financialFlag}</span>
+                    <span>{isWithinBudget ? 'Within budget' : 'Over budget'}</span>
                   </span>
                 ) : (
                   <span
@@ -246,8 +245,8 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
           <div className="bg-slate-900 border-b border-slate-800 p-4 text-white space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-xl ${isProfitable ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}`}>
-                  {isProfitable ? <CheckCircle className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+                <div className={`p-2 rounded-xl ${isWithinBudget ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}`}>
+                    {isWithinBudget ? <CheckCircle className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
                 </div>
                 <div>
                   <div className="text-[11px] text-slate-400 mt-0.5">
@@ -256,19 +255,18 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Final Profit / Loss figure 
               <div className="text-left  sm:text-right sm:border-l sm:border-slate-800 sm:pl-4">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Final Profit / Loss</span>
-                <span className={`text-xl font-black font-mono tabular-nums ${isProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {`${profitLoss >= 0 ? '+' : '-'}${formatTZS(Math.abs(profitLoss), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Final Budget Variance</span>
+                <span className={`text-xl font-black font-mono tabular-nums ${isWithinBudget ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {`${profitLoss >= 0 ? '+' : '-'}${formatTsh(Math.abs(profitLoss), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </span>
-              </div>*/}
+              </div>
             </div>
 
             {/* Formula calculation card */}
             <div className="bg-slate-950/70 p-2 rounded-xl  border-slate-800 font-mono text-xs space-y-1.5">
               <div className="text-[11px] text-slate-400 font-sans font-semibold pb-1  border-slate-800/80 flex items-center justify-between">
-                <span>Formula: Profit/Loss = Budget Allocated - (Driver Pay + Total Expenses + Total Spare Parts Cost)</span>
+                <span>Budget variance = budget estimate − driver pay − trip expenses − in-trip parts. This is not billed revenue or cash received.</span>
               </div>
             </div>
           </div>
@@ -286,7 +284,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
               }`}
             >
               <span className="flex items-center gap-1.5">
-                <DollarSign className="h-3.5 w-3.5" />
+                <Wallet className="h-3.5 w-3.5" />
                 <span>Stats</span>
               </span>
             </button>
@@ -357,26 +355,34 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
               <div className="min-w-0">
                 <h3 className="text-sm font-bold text-slate-900">Trip Financial Summary</h3>
                 <p className="text-[11px] text-slate-500 sm:text-xs">
-                  Live trip performance across budget allocation, spending, margin, and utilization.
+                  Budget estimate, recorded costs, and current budget position.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 text-white shadow-lg">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">Budget Allocated</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">Budget Estimate</div>
                     <div className="mt-2 text-2xl font-black font-mono tracking-tight sm:text-3xl">
-                      {formatTZS(trip.budget_allocated)}
+                      {formatTsh(trip.budget_allocated)}
                     </div>
                   </div>
 
                   <div className="text-left sm:text-right">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">Remaining Margin</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
+                      {isCompleted ? 'Final budget variance' : 'Budget remaining after current costs'}
+                    </div>
                     <div className={`mt-2 text-xl font-black font-mono sm:text-2xl ${isOver ? 'text-rose-300' : 'text-emerald-300'}`}>
-                      {formatTZS(trip.remaining_budget)}
+                      {formatTsh(trip.remaining_budget)}
                     </div>
                   </div>
                 </div>
+                <details className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                  <summary className="cursor-pointer text-[11px] font-bold text-slate-200">What does budget variance mean?</summary>
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
+                    For a completed trip, it is the budget estimate minus finalized trip costs. A positive result means costs were below budget; a negative result means they were above budget. It is not invoiced revenue or profit.
+                  </p>
+                </details>
 
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300">
@@ -396,15 +402,18 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
                   <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Driver Pay</div>
                   <div className="mt-2 text-xl font-extrabold text-slate-900 font-mono">
-                    {formatTZS(trip.driver_pay || 0)}
+                    {formatTsh(trip.driver_pay || 0)}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Total Spent</div>
-                  <div className={`mt-2 text-xl font-extrabold font-mono ${isOver ? 'text-rose-600' : 'text-slate-900'}`}>
-                    {formatTZS(trip.total_spent)}
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                    {isCompleted ? 'Recorded trip costs' : 'Costs + assigned driver pay'}
                   </div>
+                  <div className={`mt-2 text-xl font-extrabold font-mono ${isOver ? 'text-rose-600' : 'text-slate-900'}`}>
+                    {formatTsh(trip.total_spent)}
+                  </div>
+                  {!isCompleted && <p className="mt-1 text-[10px] leading-relaxed text-slate-500">Driver pay is allocated but not treated as incurred until trip completion.</p>}
                 </div>
 
               </div>
@@ -528,13 +537,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                       <div className="space-y-1">
                         <div className="flex items-center space-x-2">
                           <span
-                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
-                              log.severity === 'Critical'
-                                ? 'bg-rose-100 text-rose-800'
-                                : log.severity === 'High'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
+                            className={`rounded border px-2 py-0.5 text-[10px] font-extrabold ${getDelaySeverityClasses(log.severity)}`}
                           >
                             {log.severity} Severity
                           </span>
@@ -613,7 +616,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                        Amount (TZS) *
+                        Amount (Tsh) *
                       </label>
                       <input
                         type="number"
@@ -696,7 +699,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                             </span>
                           </td>
                           <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">
-                            {formatTZS(Number(exp.amount), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatTsh(Number(exp.amount), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-2.5 px-3 text-slate-600">{exp.description || '-'}</td>
                           <td className="py-2.5 px-3 text-slate-400 text-xs md:text-[11px]">
@@ -749,7 +752,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                        Part Name *
+                        Part / Service Name *
                       </label>
                       <input
                         type="text"
@@ -762,7 +765,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                        Price (TZS) *
+                        Price (Tsh) *
                       </label>
                       <input
                         type="number"
@@ -832,7 +835,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                   <table className="w-full min-w-[1120px] text-left text-[13px] md:min-w-0 md:text-xs">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] uppercase font-bold md:text-[10px]">
                       <tr>
-                        <th className="py-2.5 px-3">Part Name</th>
+                        <th className="py-2.5 px-3">Part / Service Name</th>
                         <th className="py-2.5 px-3">Price</th>
                         <th className="py-2.5 px-3">Mechanic / Shop</th>
                         <th className="py-2.5 px-3">Description</th>
@@ -845,7 +848,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                         <tr key={sp.id} className="hover:bg-slate-50/60">
                           <td className="py-2.5 px-3 font-bold text-slate-900">{sp.part_name}</td>
                           <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">
-                            {formatTZS(Number(sp.price), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatTsh(Number(sp.price), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-2.5 px-3 text-slate-700">{sp.replaced_by || 'Field Workshop'}</td>
                           <td className="py-2.5 px-3 text-slate-500">{sp.description || '-'}</td>

@@ -1,10 +1,11 @@
-export function formatTZS(
+export function formatTsh(
   amount: number,
   options: Intl.NumberFormatOptions = {},
 ): string {
-  return new Intl.NumberFormat('en-TZ', {
+  return `Tsh ${new Intl.NumberFormat('en-TZ', {
     ...options,
-    style: 'currency',
-    currency: 'TZS',
-  }).format(amount);
+    minimumFractionDigits: options.minimumFractionDigits ?? (options.maximumFractionDigits === 0 ? 0 : 2),
+    maximumFractionDigits: options.maximumFractionDigits ?? 2,
+    style: 'decimal',
+  }).format(amount)}`;
 }

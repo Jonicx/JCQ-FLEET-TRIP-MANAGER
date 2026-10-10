@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
+import { AdminDashboardView } from './components/AdminDashboardView.tsx';
 import { TripsView } from './components/TripsView.tsx';
 import { TrucksView } from './components/TrucksView.tsx';
 import { DriversView } from './components/DriversView.tsx';
@@ -19,9 +20,14 @@ import {
   EnrichedTrip,
   DatabaseStats,
   TruckStatus,
+  TruckServiceRecord,
   DriverStatus,
   TripStatus,
   ExpenseType,
+  Invoice,
+  Payment,
+  PaymentMethod,
+  AuditLog,
 } from './types/database.ts';
 
 export default function App() {
@@ -34,22 +40,32 @@ export default function App() {
 
   // Reactive DB store state
   const [trucks, setTrucks] = useState<Truck[]>(() => dbStore.getTrucks());
+  const [truckServiceRecords, setTruckServiceRecords] = useState<TruckServiceRecord[]>(() => dbStore.getTruckServiceRecords());
   const [drivers, setDrivers] = useState<Driver[]>(() => dbStore.getDrivers());
   const [trips, setTrips] = useState<Trip[]>(() => dbStore.getTrips());
   const [enrichedTrips, setEnrichedTrips] = useState<EnrichedTrip[]>(() => dbStore.getEnrichedTrips());
   const [expenses, setExpenses] = useState<Expense[]>(() => dbStore.getExpenses());
   const [spareParts, setSpareParts] = useState<SparePart[]>(() => dbStore.getSpareParts());
   const [stats, setStats] = useState<DatabaseStats>(() => dbStore.getStats());
+  const [invoices, setInvoices] = useState<Invoice[]>(() => dbStore.getInvoices());
+  const [payments, setPayments] = useState<Payment[]>(() => dbStore.getPayments());
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => dbStore.getAuditLogs());
+  const [auditActor, setAuditActor] = useState(() => dbStore.getAuditActor());
 
   useEffect(() => {
     const syncDb = () => {
       setTrucks(dbStore.getTrucks());
+      setTruckServiceRecords(dbStore.getTruckServiceRecords());
       setDrivers(dbStore.getDrivers());
       setTrips(dbStore.getTrips());
       setEnrichedTrips(dbStore.getEnrichedTrips());
       setExpenses(dbStore.getExpenses());
       setSpareParts(dbStore.getSpareParts());
       setStats(dbStore.getStats());
+      setInvoices(dbStore.getInvoices());
+      setPayments(dbStore.getPayments());
+      setAuditLogs(dbStore.getAuditLogs());
+      setAuditActor(dbStore.getAuditActor());
     };
 
     const unsubscribe = dbStore.subscribe(syncDb);
@@ -75,7 +91,7 @@ export default function App() {
       {/* Reset Success Toast */}
       {resetSuccessToast && (
         <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-bold text-center shadow-sm">
-          Database restored to default JCQ supply seed records successfully.
+          Sample fleet data restored. Invoices and payments were cleared; local audit history was retained.
         </div>
       )}
 
@@ -89,6 +105,23 @@ export default function App() {
             onOpenUpdateModal={(id) => setUpdatingTripId(id)}
             onOpenNewTrip={() => setShowNewTripModal(true)}
             onNavigateToSchema={() => setActiveTab('schema')}
+          />
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminDashboardView
+            trips={enrichedTrips}
+            trucks={trucks}
+            drivers={drivers}
+            truckServiceRecords={truckServiceRecords}
+            invoices={invoices}
+            payments={payments}
+            auditLogs={auditLogs}
+            auditActor={auditActor}
+            onSelectTrip={(id) => setSelectedTripId(id)}
+            onCreateInvoice={(data) => dbStore.createInvoice(data)}
+            onCreatePayment={(data) => dbStore.createPayment(data)}
+            onUpdateAuditActor={(actor) => dbStore.setAuditActor(actor)}
           />
         )}
 
@@ -106,7 +139,11 @@ export default function App() {
         {activeTab === 'trucks' && (
           <TrucksView
             trucks={trucks}
+            serviceRecords={truckServiceRecords}
+            trips={enrichedTrips}
             onCreateTruck={(data) => dbStore.createTruck(data)}
+            onCreateServiceRecord={(data) => dbStore.createTruckServiceRecord(data)}
+            onUpdateServiceRecord={(id, updates) => dbStore.updateTruckServiceRecord(id, updates)}
             onUpdateTruckStatus={(id, status) => dbStore.updateTruck(id, { status })}
             onDeleteTruck={(id) => dbStore.deleteTruck(id)}
           />
@@ -125,9 +162,12 @@ export default function App() {
           <ExpensesAndPartsView
             expenses={expenses}
             spareParts={spareParts}
+            trucks={trucks}
+            truckServiceRecords={truckServiceRecords}
             trips={enrichedTrips}
             onDeleteExpense={(id) => dbStore.deleteExpense(id)}
             onDeleteSparePart={(id) => dbStore.deleteSparePart(id)}
+            onUpdateTruckServiceRecord={(id, updates) => dbStore.updateTruckServiceRecord(id, updates)}
             onSelectTrip={(id) => setSelectedTripId(id)}
           />
         )}
@@ -181,10 +221,10 @@ export default function App() {
       {/* Reset Database Confirmation Modal */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
+          <div className="modal-readable bg-white rounded-2xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-slate-900">Reset Sample Database?</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              This will restore all Trucks, Drivers, Trips, Expenses, and Spare Parts back to the original JCQ General Supply Company demo seed dataset. Any newly created records will be replaced.
+              This restores Trucks, Drivers, Trips, Expenses, Spare Parts, and Truck Service History to the sample dataset and clears invoices and payments. The local audit history is retained and the reset is recorded as an event.
             </p>
             <div className="flex justify-end space-x-2 pt-2">
               <button

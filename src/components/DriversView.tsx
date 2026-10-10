@@ -223,7 +223,7 @@ export const DriversView: React.FC<DriversViewProps> = ({
       {/* Add Driver Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+          <div className="modal-readable bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-amber-500" />

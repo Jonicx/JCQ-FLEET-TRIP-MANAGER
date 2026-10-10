@@ -6,7 +6,7 @@ import {
   AlertCircle,
   Truck as TruckIcon,
   User,
-  DollarSign,
+  Wallet,
   Receipt,
   Wrench,
   Plus,
@@ -23,6 +23,7 @@ import {
   InitialExpenseInput,
   InitialSparePartInput,
 } from '../types/database.ts';
+import { formatTsh } from '../utils/currency.ts';
 
 interface NewTripModalProps {
   trucks: Truck[];
@@ -195,11 +196,11 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
 
     // 3. Monetary validations
     if (budgetNum <= 0) {
-      setErrorMsg('Validation Error: Budget Allocated must be a positive number greater than $0.');
+      setErrorMsg('Validation Error: Budget Allocated must be a positive number greater than Tsh 0.');
       return;
     }
     if (driverPayNum < 0) {
-      setErrorMsg('Validation Error: Driver Pay must be $0 or greater.');
+      setErrorMsg('Validation Error: Driver Pay must be Tsh 0 or greater.');
       return;
     }
 
@@ -208,7 +209,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
       const exp = initialExpenses[i];
       const amount = parseFloat(String(exp.amount));
       if (isNaN(amount) || amount <= 0) {
-        setErrorMsg(`Initial expense row #${i + 1} (${exp.expense_type}): Amount must be greater than $0.`);
+        setErrorMsg(`Initial expense row #${i + 1} (${exp.expense_type}): Amount must be greater than Tsh 0.`);
         return;
       }
     }
@@ -217,7 +218,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
     for (let i = 0; i < initialSpareParts.length; i++) {
       const sp = initialSpareParts[i];
       if (!sp.part_name.trim()) {
-        setErrorMsg(`Initial spare part row #${i + 1}: Part Name cannot be blank.`);
+        setErrorMsg(`Initial spare part row #${i + 1}: Part / Service Name cannot be blank.`);
         return;
       }
       const price = parseFloat(String(sp.price));
@@ -259,7 +260,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="modal-readable bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-start justify-between border-b border-slate-800">
           <div>
@@ -565,20 +566,20 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
           {/* SECTION 3: BUDGET ALLOCATION & DRIVER PAY */}
           <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 space-y-3">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
-              <DollarSign className="h-4 w-4 hidden sm:flex text-emerald-600" />
+              <Wallet className="h-4 w-4 hidden sm:flex text-emerald-600" />
               <span>3. Financial Allocation &amp; Driver Compensation</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-slate-800 block mb-1">
-                  Budget Allocated ($) *
+                  Budget Allocated (Tsh) *
                   <span className="text-slate-400 font-normal block text-[10px]">
                     Total revenue / operational capital allocated for this route
                   </span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">Tsh</span>
                   <input
                     type="number"
                     min="1"
@@ -587,20 +588,20 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                     placeholder="e.g. 3200.00"
                     value={budgetAllocated}
                     onChange={(e) => setBudgetAllocated(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 text-xs rounded-lg border border-slate-300 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full pl-10 pr-3 py-2 text-xs rounded-lg border border-slate-300 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold text-slate-800 block mb-1">
-                  Driver Pay specifically for this trip instance ($) *
+                  Driver Pay specifically for this trip instance (Tsh) *
                   <span className="text-slate-400 font-normal block text-[10px]">
                     Contract compensation payable to the driver upon route completion
                   </span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">Tsh</span>
                   <input
                     type="number"
                     min="0"
@@ -609,7 +610,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                     placeholder="e.g. 450.00"
                     value={driverPay}
                     onChange={(e) => setDriverPay(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 text-xs rounded-lg border border-slate-300 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full pl-10 pr-3 py-2 text-xs rounded-lg border border-slate-300 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -620,22 +621,22 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4 sm:gap-y-0">
                 <div>
                   <span className="text-xs sm:text-[10px] text-slate-400 uppercase block">Budget Allocated</span>
-                  <span className="font-extrabold text-slate-900 font-mono">${budgetNum.toFixed(2)}</span>
+                  <span className="font-extrabold text-slate-900 font-mono">{formatTsh(budgetNum)}</span>
                 </div>
                 <span className="hidden text-slate-300 sm:inline">-</span>
                 <div>
                   <span className="text-xs sm:text-[10px] text-slate-400 uppercase block">Driver Pay</span>
-                  <span className="font-bold text-slate-700 font-mono">${driverPayNum.toFixed(2)}</span>
+                  <span className="font-bold text-slate-700 font-mono">{formatTsh(driverPayNum)}</span>
                 </div>
                 <span className="hidden text-slate-300 sm:inline">-</span>
                 <div>
                   <span className="text-xs sm:text-[10px] text-slate-400 uppercase block">Launch Expenses</span>
-                  <span className="font-bold text-slate-700 font-mono">${expensesSubtotal.toFixed(2)}</span>
+                  <span className="font-bold text-slate-700 font-mono">{formatTsh(expensesSubtotal)}</span>
                 </div>
                 <span className="hidden text-slate-300 sm:inline">-</span>
                 <div>
                   <span className="text-xs sm:text-[10px] text-slate-400 uppercase block">Launch Spares</span>
-                  <span className="font-bold text-slate-700 font-mono">${sparePartsSubtotal.toFixed(2)}</span>
+                  <span className="font-bold text-slate-700 font-mono">{formatTsh(sparePartsSubtotal)}</span>
                 </div>
               </div>
 
@@ -646,7 +647,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                     projectedNetMargin >= 0 ? 'text-emerald-600' : 'text-rose-600'
                   }`}
                 >
-                  ${projectedNetMargin.toFixed(2)}
+                  {formatTsh(projectedNetMargin)}
                 </span>
               </div>
             </div>
@@ -702,7 +703,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Amount ($) *</label>
+                      <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Amount (Tsh) *</label>
                       <input
                         type="number"
                         min="0.01"
@@ -777,7 +778,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                     className="p-3 rounded-lg border border-slate-200 bg-white grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center"
                   >
                     <div className="sm:col-span-5">
-                      <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Part Name *</label>
+                      <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Part / Service Name *</label>
                       <input
                         type="text"
                         required
@@ -789,7 +790,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Price ($) *</label>
+                      <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Price (Tsh) *</label>
                       <input
                         type="number"
                         min="0"

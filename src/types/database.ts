@@ -25,6 +25,20 @@ export interface Truck {
   updated_at: string;
 }
 
+export type TruckServiceType = 'Service' | 'Spare Part';
+
+export interface TruckServiceRecord {
+  id: string;
+  truck_id: string;
+  record_type: TruckServiceType;
+  item_name: string;
+  price: number;
+  mechanic_name: string;
+  service_location: string;
+  timestamp: string;
+  created_at: string;
+}
+
 export interface Driver {
   id: string;
   full_name: string;
@@ -45,15 +59,15 @@ export interface Trip {
   destination: string;
   scheduled_start: string; // ISO 8601
   scheduled_end: string;   // ISO 8601
-  budget_allocated: number; // Planned Revenue/Money allocated
+  budget_allocated: number; // Planned trip budget estimate, not invoiced revenue
   driver_pay: number;      // Driver compensation for this trip instance
   cargo_type?: string;
   notes?: string;
   delay_logs: DelayLog[]; // Dynamic delay reasons with timestamps
-  final_profit_loss?: number;       // Exact outcome: Budget - (Driver Pay + Total Expenses + Total Spare Parts Cost)
+  final_profit_loss?: number;       // Legacy field: budget estimate minus final trip costs; not accounting profit
   total_expenses_cost?: number;     // Final Total Expenses
   total_spare_parts_cost?: number;  // Final Total Spare Parts Cost
-  financial_flag?: 'Profitable' | 'Loss'; // Visual flag
+  financial_flag?: 'Profitable' | 'Loss'; // Legacy persisted flag for positive/negative budget variance
   completed_at?: string;            // ISO 8601 when completed
   created_at: string;
   updated_at: string;
@@ -107,6 +121,51 @@ export interface SparePart {
   created_at: string;
 }
 
+export interface Invoice {
+  id: string;
+  trip_id: string;
+  invoice_number: string;
+  amount: number;
+  issued_at: string;
+  due_at: string;
+  created_at: string;
+}
+
+export type PaymentMethod = 'Cash' | 'Bank transfer' | 'Mobile money' | 'Cheque' | 'Other';
+
+export interface Payment {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  method: PaymentMethod;
+  paid_at: string;
+  reference?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export type AuditEntityType =
+  | 'trip'
+  | 'expense'
+  | 'spare part'
+  | 'truck service'
+  | 'invoice'
+  | 'payment'
+  | 'audit settings'
+  | 'database';
+
+export interface AuditLog {
+  id: string;
+  actor: string;
+  action: string;
+  entity_type: AuditEntityType;
+  entity_id: string;
+  related_trip_id?: string;
+  summary: string;
+  details?: string;
+  timestamp: string;
+}
+
 // Joined View Models for UI and analytics
 export interface EnrichedTrip extends Trip {
   truck?: Truck;
@@ -137,8 +196,8 @@ export interface DatabaseStats {
   totalBudgetAllocated: number;
   totalActualExpenses: number;
   totalSparePartsCost: number;
-  netVariance: number;
-  totalProfitRealized: number;
-  profitableTripsCount: number;
-  lossTripsCount: number;
+  budgetLessExpensesAndParts: number;
+  totalFinalizedBudgetVariance: number;
+  withinBudgetTripsCount: number;
+  overBudgetTripsCount: number;
 }

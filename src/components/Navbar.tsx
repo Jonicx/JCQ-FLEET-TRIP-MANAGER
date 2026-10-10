@@ -6,6 +6,7 @@ import {
   Receipt,
   Database,
   LayoutDashboard,
+  BarChart3,
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
@@ -28,14 +29,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Operations', icon: LayoutDashboard },
+    { id: 'admin', label: 'Admin', icon: BarChart3 },
     { id: 'trips', label: 'Trips', icon: Navigation2, badge: stats.ongoingTrips },
     { id: 'trucks', label: 'Truck Fleet', icon: TruckIcon, badge: stats.totalTrucks },
     { id: 'drivers', label: 'Drivers', icon: Users, badge: stats.totalDrivers },
-    { id: 'expenses', label: 'Expenses & Parts', icon: Receipt },
+    { id: 'expenses', label: 'Expenses & Services', icon: Receipt },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-lg">
+    <header className="sticky top-0 z-40 bg-slate-900 border-b rounded-br-3xl sm:rounded-b-3xl border-slate-800 backdrop-blur-md text-white shadow-lg shadow-slate-900/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
@@ -43,13 +45,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex flex-row items-start space-x-2">
               <span className="font-extrabold text-md tracking-tight text-white">JCQ</span>
               <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold border border-amber-500/30 shadow-md shadow-orange-500/20">
-                SUPPLY CO.
+                Enterprise
               </span>
             </div>
           </div>
 
           {/* Nav Links */}
-          <nav className="hidden md:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -97,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Sub-Navigation */}
-        <div className="flex md:hidden overflow-x-auto py-2 space-x-1 border-t border-slate-800 scrollbar-none">
+        <div className="flex lg:hidden overflow-x-auto py-2 space-x-1 border-t rounded-t-sm border-slate-700 scrollbar-none">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -105,14 +107,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap ${
+                className={`flex flex-col items-center justify-center space-x-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap ${
                   isActive
-                    ? 'bg-slate-800 text-white border border-slate-700'
+                    ? 'text-white'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{item.label}</span>
+                <div className="flex items-center space-x-2">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{item.label}</span>
+                </div>
+                {isActive && (
+                  <span className="mt-1 flex h-0.5 w-10 relative">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-gradient-to-r from-blue-600 via-blue-300 to-slate-900 opacity-75"></span>
+                  </span>
+                )}
               </button>
             );
           })}

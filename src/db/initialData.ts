@@ -1,4 +1,4 @@
-import { Truck, Driver, Trip, Expense, SparePart, DelayLog } from '../types/database.ts';
+import { Truck, TruckServiceRecord, Driver, Trip, Expense, SparePart, DelayLog } from '../types/database.ts';
 
 export const INITIAL_TRUCKS: Truck[] = [
   {
@@ -55,6 +55,75 @@ export const INITIAL_TRUCKS: Truck[] = [
     current_mileage: 45200,
     created_at: '2026-03-01T12:00:00Z',
     updated_at: '2026-09-26T15:00:00Z',
+  },
+];
+
+export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
+  {
+    id: 's1111111-1111-1111-1111-111111111111',
+    truck_id: 'b1111111-1111-1111-1111-111111111111',
+    record_type: 'Service',
+    item_name: 'Scheduled engine oil and filter change',
+    price: 285000,
+    mechanic_name: 'Jean-Baptiste Nkurunziza',
+    service_location: 'Kigali Truck Centre',
+    timestamp: '2026-09-12T09:30:00Z',
+    created_at: '2026-09-12T09:30:00Z',
+  },
+  {
+    id: 's2222222-2222-2222-2222-222222222222',
+    truck_id: 'b2222222-2222-2222-2222-222222222222',
+    record_type: 'Spare Part',
+    item_name: 'Front brake pads replacement',
+    price: 460000,
+    mechanic_name: 'Eric Mugabo',
+    service_location: 'Remera Fleet Workshop',
+    timestamp: '2026-09-18T14:15:00Z',
+    created_at: '2026-09-18T14:15:00Z',
+  },
+  {
+    id: 's3333333-3333-3333-3333-333333333333',
+    truck_id: 'b3333333-3333-3333-3333-333333333333',
+    record_type: 'Service',
+    item_name: 'Clutch and transmission inspection',
+    price: 320000,
+    mechanic_name: 'Patrick Habimana',
+    service_location: 'Musanze Heavy Vehicle Garage',
+    timestamp: '2026-09-27T10:00:00Z',
+    created_at: '2026-09-27T10:00:00Z',
+  },
+  {
+    id: 's4444444-4444-4444-4444-444444444444',
+    truck_id: 'b3333333-3333-3333-3333-333333333333',
+    record_type: 'Spare Part',
+    item_name: 'Alternator replacement',
+    price: 675000,
+    mechanic_name: 'Patrick Habimana',
+    service_location: 'Musanze Heavy Vehicle Garage',
+    timestamp: '2026-09-27T11:45:00Z',
+    created_at: '2026-09-27T11:45:00Z',
+  },
+  {
+    id: 's5555555-5555-5555-5555-555555555555',
+    truck_id: 'b4444444-4444-4444-4444-444444444444',
+    record_type: 'Service',
+    item_name: 'Wheel alignment and suspension check',
+    price: 195000,
+    mechanic_name: 'Claude Niyonzima',
+    service_location: 'Huye Auto Service',
+    timestamp: '2026-08-30T08:20:00Z',
+    created_at: '2026-08-30T08:20:00Z',
+  },
+  {
+    id: 's6666666-6666-6666-6666-666666666666',
+    truck_id: 'b5555555-5555-5555-5555-555555555555',
+    record_type: 'Spare Part',
+    item_name: 'Two rear tyres replacement',
+    price: 1380000,
+    mechanic_name: 'Alexis Rukundo',
+    service_location: 'Kigali Truck Centre',
+    timestamp: '2026-09-21T13:00:00Z',
+    created_at: '2026-09-21T13:00:00Z',
   },
 ];
 

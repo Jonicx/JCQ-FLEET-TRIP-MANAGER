@@ -1,21 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Truck as TruckIcon,
   Navigation2,
   AlertTriangle,
   Receipt,
   Wrench,
-  DollarSign,
+  Wallet,
   ArrowUpRight,
   Clock,
   MapPin,
   CheckCircle2,
   Calendar,
   ShieldAlert,
+  ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 import { EnrichedTrip, DatabaseStats } from '../types/database.ts';
-import { formatTZS } from '../utils/currency.ts';
+import { formatTsh } from '../utils/currency.ts';
+import { getDelaySeverityClasses } from '../utils/delaySeverity.ts';
 
 interface DashboardViewProps {
   stats: DatabaseStats;
@@ -34,8 +36,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewTrip,
   onNavigateToSchema,
 }) => {
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const ongoingTrips = enrichedTrips.filter((t) => t.status === 'Ongoing');
-  const plannedTrips = enrichedTrips.filter((t) => t.status === 'Planned');
+  const currentTime = Date.now();
+  const plannedTrips = enrichedTrips.filter(
+    (trip) =>
+      trip.status === 'Planned' &&
+      new Date(trip.scheduled_start).getTime() >= currentTime,
+  );
+  const operationalTrips = [...ongoingTrips, ...plannedTrips];
+  const openTripBudget = operationalTrips.reduce(
+    (total, trip) => total + Number(trip.budget_allocated || 0),
+    0,
+  );
+  const ongoingTripCosts = ongoingTrips.reduce((total, trip) => total + trip.total_spent, 0);
+  const ongoingExpenses = ongoingTrips.reduce((total, trip) => total + trip.total_expenses, 0);
+  const ongoingParts = ongoingTrips.reduce((total, trip) => total + trip.total_spare_parts, 0);
 
   // Calculate fleet utilization
   const totalFleet = stats.totalTrucks || 1;
@@ -67,14 +83,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex flex-wrap items-center gap-3">
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-200/90">
               Realtime haulage management tracking trucks, drivers, ongoing trips, dynamic delay logs,
-              transit expenses, and roadside spare parts maintenance.
+              transit expenses, and roadside spare parts & maintenance.
             </p>
           </div>
         </div>
       </div>
 
+      <button
+        type="button"
+        aria-expanded={isSummaryOpen}
+        aria-controls="operations-summary-cards"
+        onClick={() => setIsSummaryOpen((open) => !open)}
+        className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm font-bold animate-pulse lg:hidden ${
+          isSummaryOpen
+            ? 'border-green-700 bg-green-700/80 text-white shadow-[0_0_14px_2px_rgba(21,128,61,0.8)]'
+            : 'border-green-500 bg-green-500/40 text-green-950 shadow-[0_0_14px_2px_rgba(34,197,94,0.7)]'
+        }`}
+      >
+        <span>Operations Summary</span>
+        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${
+          isSummaryOpen
+            ? 'border-green-300/80 bg-green-800/60 text-white'
+            : 'border-green-600/70 bg-green-100/70 text-green-900'
+        }`}>
+          {isSummaryOpen ? 'Hide' : 'Show'}
+        </span>
+      </button>
+
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <div
+        id="operations-summary-cards"
+        className={`${isSummaryOpen ? 'grid' : 'hidden'} grid-cols-1 gap-3 sm:grid-cols-2 lg:grid lg:grid-cols-4 lg:gap-4`}
+      >
         {/* Active Trips Card */}
         <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs lg:p-5 lg:shadow-xs">
           <div className="flex items-center justify-between">
@@ -87,11 +127,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2 lg:mt-3 lg:flex-nowrap lg:gap-x-0 lg:space-x-2">
             <span className="text-lg font-extrabold text-slate-900 font-mono lg:font-sans lg:text-3xl">{stats.ongoingTrips}</span>
-            <span className="text-[10px] text-slate-400 lg:text-xs lg:text-slate-500">of {stats.totalTrips} total</span>
+            <span className="text-[10px] text-slate-400 lg:text-xs lg:text-slate-500">currently on the road</span>
           </div>
           <div className="mt-1 flex items-center text-[10px] text-slate-400 lg:mt-2 lg:text-xs lg:text-slate-600">
             <span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1.5 animate-pulse"></span>
-            <span>{stats.plannedTrips} planned in queue</span>
+            <span>{plannedTrips.length} upcoming departures</span>
           </div>
         </div>
 
@@ -123,19 +163,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs lg:p-5 lg:shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider lg:text-xs lg:font-semibold">
-              Allocated Budget
+              Open Trip Budgets
             </span>
             <div className="hidden h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 items-center justify-center lg:flex">
-              <DollarSign className="h-4 w-4" />
+              <Wallet className="h-4 w-4" />
             </div>
           </div>
           <div className="mt-1 flex items-baseline lg:mt-3">
             <span className="text-lg font-extrabold text-slate-900 font-mono lg:font-sans lg:text-2xl">
-              {formatTZS(stats.totalBudgetAllocated)}
+              {formatTsh(openTripBudget)}
             </span>
           </div>
           <div className="mt-1 text-[10px] text-slate-400 lg:mt-2 lg:text-xs lg:text-slate-600">
-            Total planned trip revenue / funds
+            Ongoing and upcoming trips only
           </div>
         </div>
 
@@ -143,7 +183,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs lg:p-5 lg:shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider lg:text-xs lg:font-semibold">
-              Actual Spend
+              Ongoing Trip Costs
             </span>
             <div className="hidden h-8 w-8 rounded-lg bg-purple-50 text-purple-600 items-center justify-center lg:flex">
               <Receipt className="h-4 w-4" />
@@ -151,15 +191,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2 lg:mt-3 lg:flex-nowrap lg:gap-x-0 lg:space-x-2">
             <span className="text-lg font-extrabold text-slate-900 font-mono lg:font-sans lg:text-2xl">
-              {formatTZS(stats.totalActualExpenses + stats.totalSparePartsCost)}
-            </span>
-            <span className="text-[10px] font-semibold text-emerald-600 lg:text-xs">
-              ({formatTZS(stats.netVariance)} margin)
+              {formatTsh(ongoingTripCosts)}
             </span>
           </div>
           <div className="mt-1 text-[10px] text-slate-400 flex items-center justify-between lg:mt-2 lg:text-xs lg:text-slate-500">
-            <span>Expenses: {formatTZS(stats.totalActualExpenses)}</span>
-            <span>Spares: {formatTZS(stats.totalSparePartsCost)}</span>
+            <span>Expenses: {formatTsh(ongoingExpenses)}</span>
+            <span>Spares: {formatTsh(ongoingParts)}</span>
           </div>
         </div>
       </div>
@@ -255,19 +292,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div>
                         <span className="text-[10px] text-slate-400 block uppercase">Driver Pay</span>
                         <span className="font-black text-slate-800 truncate block">
-                          {formatTZS(trip.driver_pay || 0)}
+                          {formatTsh(trip.driver_pay || 0)}
                         </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block uppercase">Budget</span>
                         <span className="font-black text-slate-800">
-                          {formatTZS(trip.budget_allocated)}
+                          {formatTsh(trip.budget_allocated)}
                         </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-slate-400 block uppercase">Total Spent</span>
                         <span className={`font-black ${isOver ? 'text-rose-600' : 'text-slate-800'}`}>
-                          {formatTZS(trip.total_spent)}
+                          {formatTsh(trip.total_spent)}
                         </span>
                       </div>
                     </div>
@@ -316,7 +353,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {/* Operational Update Action CTA */}
                     <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-[11px] text-slate-500 font-medium">
-                        Disbursements: <strong>{formatTZS(trip.total_expenses)}</strong> exp • <strong>{formatTZS(trip.total_spare_parts)}</strong> spares
+                        Disbursements: <strong>{formatTsh(trip.total_expenses)}</strong> exp • <strong>{formatTsh(trip.total_spare_parts)}</strong> spares
                       </span>
 
                       <button
@@ -341,7 +378,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
 
           {/* Planned Trips Queue */}
-          {plannedTrips.length > 0 && (
+          {plannedTrips.length > 0 ? (
             <div className="mt-6 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -371,7 +408,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                       <div className="flex w-full items-center justify-center gap-2 mt-2.5 sm:mt-0 text-xs sm:w-auto sm:justify-end">
                         <span className="font-black text-slate-700">
-                          {formatTZS(trip.budget_allocated)}
+                          {formatTsh(trip.budget_allocated)}
                         </span>
                         <ChevronRight className="h-4 w-4 text-slate-400" />
                       </div>
@@ -379,6 +416,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center">
+              <Calendar className="mx-auto h-7 w-7 text-slate-300" />
+              <p className="mt-2 text-sm font-semibold text-slate-700">No upcoming departures scheduled.</p>
+              <p className="mt-1 text-xs text-slate-500">Planned trips with a future start date will appear here.</p>
             </div>
           )}
         </div>
@@ -413,13 +456,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <span
-                        className={`inline-flex w-fit text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                          delay.severity === 'Critical'
-                            ? 'bg-rose-100 text-rose-800'
-                            : delay.severity === 'High'
-                            ? 'bg-amber-200 text-amber-900'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
+                        className={`inline-flex w-fit rounded border px-1.5 py-0.5 text-[10px] font-extrabold ${getDelaySeverityClasses(delay.severity)}`}
                       >
                         {delay.severity} Severity
                       </span>

@@ -16,6 +16,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { EnrichedTrip, TripStatus } from '../types/database.ts';
+import { formatTsh } from '../utils/currency.ts';
 
 interface TripsViewProps {
   trips: EnrichedTrip[];
@@ -75,6 +76,13 @@ export const TripsView: React.FC<TripsViewProps> = ({
           <span>Plan &amp; Schedule New Trip</span>
         </button>
       </div>
+
+      <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs">
+        <summary className="cursor-pointer text-xs font-bold text-slate-700">What do budget estimate and variance mean?</summary>
+        <p className="mt-2 text-xs leading-relaxed text-slate-600">
+          The budget estimate is the planned amount for a trip. For completed trips, budget variance is the estimate minus finalized trip costs. It shows whether recorded costs were under or over budget; it is not customer revenue or profit.
+        </p>
+      </details>
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
@@ -164,15 +172,15 @@ export const TripsView: React.FC<TripsViewProps> = ({
 
                           {trip.status === 'Completed' && (
                             <div>
-                              {trip.financial_flag === 'Profitable' || (trip.profit_loss >= 0) ? (
+                              {trip.profit_loss >= 0 ? (
                                 <span className="inline-flex items-center text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 md:text-[10px]">
                                   <CheckCircle className="h-3 w-3 text-emerald-600 mr-1" />
-                                  <span>Profitable</span>
+                                  <span>Within budget</span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center text-xs font-bold text-rose-800 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 md:text-[10px]">
                                   <AlertTriangle className="h-3 w-3 text-rose-600 mr-1" />
-                                  <span>Loss</span>
+                                  <span>Over budget</span>
                                 </span>
                               )}
                             </div>
@@ -213,39 +221,39 @@ export const TripsView: React.FC<TripsViewProps> = ({
                         {trip.status === 'Completed' ? (
                           <div>
                             <div className="flex items-baseline space-x-1.5 font-mono tabular-nums">
-                              <span className="text-[11px] font-sans font-semibold text-slate-400 uppercase md:text-[10px]">Outcome:</span>
+                              <span className="text-[11px] font-sans font-semibold text-slate-400 uppercase md:text-[10px]">Variance:</span>
                               <span
                                 className={`font-bold text-xs ${
-                                  trip.financial_flag === 'Profitable' || trip.profit_loss >= 0
+                                  trip.profit_loss >= 0
                                     ? 'text-emerald-600'
                                     : 'text-rose-600'
                                 }`}
                               >
-                                {trip.profit_loss >= 0 ? '+' : '-'}${Math.abs(trip.final_profit_loss ?? trip.profit_loss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {trip.profit_loss >= 0 ? '+' : '-'}{formatTsh(Math.abs(trip.profit_loss))}
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-500 mt-0.5 font-mono tabular-nums md:text-[10px]">
-                              <span>Budget: ${trip.budget_allocated.toLocaleString()}</span>
+                              <span>Budget estimate: {formatTsh(trip.budget_allocated)}</span>
                               <span className="mx-1 text-slate-300">·</span>
-                              <span>Spent: ${trip.total_spent.toLocaleString()}</span>
+                              <span>Trip costs: {formatTsh(trip.total_spent)}</span>
                             </div>
                           </div>
                         ) : (
                           <div>
                             <div className="flex items-baseline space-x-1.5">
                               <span className={`font-bold font-mono tabular-nums ${isOver ? 'text-rose-600' : 'text-slate-900'}`}>
-                                ${trip.total_spent.toLocaleString()}
+                                {formatTsh(trip.total_spent)}
                               </span>
                               <span className="text-slate-400">/</span>
-                              <span className="text-slate-600 font-mono tabular-nums">${trip.budget_allocated.toLocaleString()}</span>
+                              <span className="text-slate-600 font-mono tabular-nums">{formatTsh(trip.budget_allocated)}</span>
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-1.5 font-mono tabular-nums md:text-[10px]">
-                              <span className="text-blue-600 font-medium">Pay: ${(trip.driver_pay || 0).toLocaleString()}</span>
+                              <span className="text-blue-600 font-medium">Driver pay: {formatTsh(trip.driver_pay || 0)}</span>
                               <span>•</span>
                               {isOver ? (
                                 <span className="text-rose-600 font-semibold">Over Budget!</span>
                               ) : (
-                                <span>${trip.remaining_budget.toLocaleString()} margin</span>
+                                <span>{formatTsh(trip.remaining_budget)} budget variance</span>
                               )}
                             </div>
                           </div>
@@ -297,7 +305,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
                           {trip.status === 'Ongoing' && (
                             <button
                               onClick={() => setTripToComplete(trip)}
-                              title="Complete Trip (Revert Fleet Assets & Calculate Profit/Loss)"
+                              title="Complete trip (revert fleet assets and calculate budget variance)"
                               className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center space-x-1 shadow-xs"
                             >
                               <CheckCircle className="h-3.5 w-3.5" />
@@ -342,14 +350,14 @@ export const TripsView: React.FC<TripsViewProps> = ({
 
         return (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4">
+            <div className="modal-readable bg-white rounded-2xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl space-y-4">
               <div className="flex items-center space-x-3 text-emerald-600">
                 <div className="p-2 bg-emerald-50 rounded-xl">
                   <CheckCircle className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Complete Journey &amp; Finalize Outcome</h3>
-                  <p className="text-xs text-slate-500">Calculate final Profit/Loss and revert fleet assets</p>
+                  <h3 className="text-base font-bold text-slate-900">Complete trip and finalize budget variance</h3>
+                  <p className="text-xs text-slate-500">Finalize recorded trip costs and release the assigned fleet assets.</p>
                 </div>
               </div>
 
@@ -368,33 +376,33 @@ export const TripsView: React.FC<TripsViewProps> = ({
               {/* Exact Formula Breakdown Box */}
               <div className="space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Financial Calculation Formula
+                  Budget variance calculation
                 </div>
                 <div className="bg-slate-900 text-slate-100 p-3.5 rounded-xl font-mono text-xs space-y-2 border border-slate-800">
                   <div className="text-[11px] text-slate-400 pb-1 border-b border-slate-800">
-                    Profit/Loss = Budget Allocated - (Driver Pay + Total Expenses + Total Spare Parts Cost)
+                    Budget variance = budget estimate - (driver pay + trip expenses + in-trip parts)
                   </div>
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Budget Allocated:</span>
-                      <span className="font-bold text-white tabular-nums">${budget.toFixed(2)}</span>
+                      <span className="text-slate-400">Budget estimate:</span>
+                      <span className="font-bold text-white tabular-nums">{formatTsh(budget)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300">
-                      <span className="text-slate-400">(-) Driver Pay:</span>
-                      <span className="tabular-nums">-${driverPay.toFixed(2)}</span>
+                      <span className="text-slate-400">(-) Driver pay:</span>
+                      <span className="tabular-nums">-{formatTsh(driverPay)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300">
-                      <span className="text-slate-400">(-) Total Expenses ({tripToComplete.expenses.length}):</span>
-                      <span className="tabular-nums">-${totalExp.toFixed(2)}</span>
+                      <span className="text-slate-400">(-) Trip expenses ({tripToComplete.expenses.length}):</span>
+                      <span className="tabular-nums">-{formatTsh(totalExp)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300">
-                      <span className="text-slate-400">(-) Total Spare Parts ({tripToComplete.spare_parts.length}):</span>
-                      <span className="tabular-nums">-${totalSpares.toFixed(2)}</span>
+                      <span className="text-slate-400">(-) In-trip parts ({tripToComplete.spare_parts.length}):</span>
+                      <span className="tabular-nums">-{formatTsh(totalSpares)}</span>
                     </div>
                     <div className="pt-2 border-t border-slate-800 flex justify-between items-baseline">
-                      <span className="font-bold text-white uppercase text-[11px]">Final Outcome:</span>
+                      <span className="font-bold text-white uppercase text-[11px]">Final budget variance:</span>
                       <span className={`text-base font-extrabold tabular-nums ${isProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isProfitable ? '+' : '-'}${Math.abs(profitLoss).toFixed(2)}
+                        {isProfitable ? '+' : '-'}{formatTsh(Math.abs(profitLoss))}
                       </span>
                     </div>
                   </div>
@@ -415,12 +423,12 @@ export const TripsView: React.FC<TripsViewProps> = ({
                   )}
                   <div>
                     <span className="font-bold block">
-                      Visual Flag: {isProfitable ? 'Profitable' : 'Loss'}
+                      Budget position: {isProfitable ? 'Within budget' : 'Over budget'}
                     </span>
                     <span className="text-[11px] opacity-80">
                       {isProfitable
-                        ? 'Trip generated net positive supply earnings above operational costs.'
-                        : 'Trip incurred operational deficit exceeding allocated budget.'}
+                        ? 'The budget estimate exceeds recorded trip costs. This is not billed revenue or cash profit.'
+                        : 'Recorded trip costs exceed the budget estimate.'}
                     </span>
                   </div>
                 </div>
@@ -463,7 +471,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
       {/* Delete Confirmation Modal */}
       {tripToDelete && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
+          <div className="modal-readable bg-white rounded-2xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
             <div className="flex items-center space-x-3 text-rose-600">
               <div className="p-2 bg-rose-50 rounded-xl">
                 <Trash2 className="h-6 w-6" />

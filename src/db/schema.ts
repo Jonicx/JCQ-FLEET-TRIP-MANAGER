@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   pgTable,
   uuid,
@@ -10,6 +10,7 @@ import {
   pgEnum,
   jsonb,
   index,
+  check,
 } from 'drizzle-orm/pg-core';
 
 // ============================================================================
@@ -158,7 +159,77 @@ export const spareParts = pgTable(
 );
 
 // ============================================================================
-// 7. ORM RELATIONS
+// 7. INVOICES, PAYMENTS & AUDIT HISTORY
+// ============================================================================
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tripId: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    invoiceNumber: varchar('invoice_number', { length: 80 }).notNull().unique(),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_invoices_trip_id').on(table.tripId),
+    index('idx_invoices_issued_at').on(table.issuedAt),
+    index('idx_invoices_due_at').on(table.dueAt),
+    check('chk_invoices_amount_positive', sql`${table.amount} > 0`),
+    check('chk_invoices_due_after_issue', sql`${table.dueAt} >= ${table.issuedAt}`),
+  ],
+);
+
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    invoiceId: uuid('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+    method: varchar('method', { length: 30 }).notNull(),
+    paidAt: timestamp('paid_at', { withTimezone: true }).notNull(),
+    reference: varchar('reference', { length: 120 }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_payments_invoice_id').on(table.invoiceId),
+    index('idx_payments_paid_at').on(table.paidAt),
+    check('chk_payments_amount_positive', sql`${table.amount} > 0`),
+    check(
+      'chk_payments_method_valid',
+      sql`${table.method} IN ('Cash', 'Bank transfer', 'Mobile money', 'Cheque', 'Other')`,
+    ),
+  ],
+);
+
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    actor: varchar('actor', { length: 100 }).notNull(),
+    action: varchar('action', { length: 100 }).notNull(),
+    entityType: varchar('entity_type', { length: 40 }).notNull(),
+    entityId: varchar('entity_id', { length: 120 }).notNull(),
+    relatedTripId: varchar('related_trip_id', { length: 120 }),
+    summary: text('summary').notNull(),
+    details: jsonb('details'),
+    timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_audit_logs_entity').on(table.entityType, table.entityId),
+    index('idx_audit_logs_related_trip').on(table.relatedTripId),
+    index('idx_audit_logs_timestamp').on(table.timestamp),
+  ],
+);
+
+// ============================================================================
+// 8. ORM RELATIONS
 // ============================================================================
 export const trucksRelations = relations(trucks, ({ many }) => ({
   trips: many(trips),
@@ -180,6 +251,22 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   expenses: many(expenses),
   spareParts: many(spareParts),
   delayLogs: many(tripDelayLogs),
+  invoices: many(invoices),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  trip: one(trips, {
+    fields: [invoices.tripId],
+    references: [trips.id],
+  }),
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
+  }),
 }));
 
 export const tripDelayLogsRelations = relations(tripDelayLogs, ({ one }) => ({
@@ -221,3 +308,12 @@ export type InsertSparePart = typeof spareParts.$inferInsert;
 
 export type SelectTripDelayLog = typeof tripDelayLogs.$inferSelect;
 export type InsertTripDelayLog = typeof tripDelayLogs.$inferInsert;
+
+export type SelectInvoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;
+
+export type SelectPayment = typeof payments.$inferSelect;
+export type InsertPayment = typeof payments.$inferInsert;
+
+export type SelectAuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

@@ -28,7 +28,8 @@ import {
   Expense,
   SparePart,
 } from '../types/database.ts';
-import { formatTZS } from '../utils/currency.ts';
+import { formatTsh } from '../utils/currency.ts';
+import { getDelaySeverityClasses } from '../utils/delaySeverity.ts';
 
 interface UpdateTripModalProps {
   trip: EnrichedTrip;
@@ -127,7 +128,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
 
     const amt = parseFloat(expenseAmount);
     if (isNaN(amt) || amt <= 0) {
-      setFormError('Expense amount must be a positive number greater than TZS 0.');
+      setFormError('Expense amount must be a positive number greater than Tsh 0.');
       return;
     }
 
@@ -142,7 +143,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
       setExpenseAmount('');
       setExpenseDesc('');
       setExpenseTimestamp(getNowFormatted());
-      showToast(`Logged TZS ${amt.toFixed(2)} ${expenseType} expense in real-time.`);
+      showToast(`Logged Tsh ${amt.toFixed(2)} ${expenseType} expense in real-time.`);
     } catch (err: any) {
       setFormError(err.message || 'Failed to append expense.');
     }
@@ -154,12 +155,12 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
     setFormError(null);
 
     if (!partName.trim()) {
-      setFormError('Part name is required for spare part maintenance log.');
+      setFormError('Part / Service name is required for spare part maintenance log.');
       return;
     }
     const priceNum = parseFloat(partPrice);
     if (isNaN(priceNum) || priceNum < 0) {
-      setFormError('Part price must be TZS 0 or greater.');
+      setFormError('Part / Service price must be Tsh 0 or greater.');
       return;
     }
 
@@ -177,7 +178,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
       setPartDesc('');
       setPartReplacedBy('');
       setPartTimestamp(getNowFormatted());
-      showToast(`Logged spare part '${partName.trim()}' (TZS ${priceNum.toFixed(2)}) in real-time.`);
+      showToast(`Logged spare part '${partName.trim()}' (Tsh ${priceNum.toFixed(2)}) in real-time.`);
     } catch (err: any) {
       setFormError(err.message || 'Failed to append spare part.');
     }
@@ -267,7 +268,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
       id: `exp-${e.id}`,
       type: 'expense' as const,
       timestamp: e.timestamp,
-      title: `${e.expense_type} Disbursement: TZS ${Number(e.amount).toFixed(2)}`,
+      title: `${e.expense_type} Disbursement: Tsh ${Number(e.amount).toFixed(2)}`,
       subtitle: e.description || 'No description provided',
       badge: e.expense_type,
       badgeStyle:
@@ -285,7 +286,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
       id: `sp-${sp.id}`,
       type: 'spare_part' as const,
       timestamp: sp.timestamp,
-      title: `Roadside Maintenance: ${sp.part_name} (TZS ${Number(sp.price).toFixed(2)})`,
+      title: `Roadside Maintenance: ${sp.part_name} (Tsh ${Number(sp.price).toFixed(2)})`,
       subtitle: `${sp.description || 'Maintenance replacement'}${sp.replaced_by ? ` · Replaced by ${sp.replaced_by}` : ''}`,
       badge: 'Spare Part',
       badgeStyle: 'text-orange-900 bg-orange-50 border-orange-200',
@@ -299,12 +300,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
       title: `Delay Documented: ${l.reason}`,
       subtitle: `${l.location ? `Checkpoint: ${l.location} · ` : ''}${l.duration_minutes ? `Impact: +${l.duration_minutes} min` : ''}`,
       badge: `${l.severity} Delay`,
-      badgeStyle:
-        l.severity === 'Critical'
-          ? 'text-rose-900 bg-rose-50 border-rose-200'
-          : l.severity === 'High'
-          ? 'text-amber-900 bg-amber-50 border-amber-200'
-          : 'text-slate-800 bg-slate-50 border-slate-200',
+      badgeStyle: getDelaySeverityClasses(l.severity),
       amount: undefined,
       rawItem: l,
     })),
@@ -334,7 +330,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="modal-readable bg-white w-full max-w-5xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Top Header */}
         <div className="bg-slate-900 text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800">
           <div>
@@ -555,7 +551,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-semibold text-slate-700">Amount (TZS) *</label>
+                        <label className="text-xs font-semibold text-slate-700">Amount (Tsh) *</label>
                         <div className="items-center space-x-1 text-[11px] hidden sm:inline-flex">
                           <span className="text-slate-400 ">Quick:</span>
                           {[25000, 50000, 100000, 200000, 350000].map((amt) => (
@@ -565,19 +561,18 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                               onClick={() => setExpenseAmount(String(amt))}
                               className="px-1.5 py-0.5 rounded bg-white hover:bg-blue-50 text-slate-700 border border-slate-200 font-mono tabular-nums transition"
                             >
-                              +TZS {amt}
+                              +Tsh {amt}
                             </button>
                           ))}
                         </div>
                       </div>
                       <div className="relative">
-                        {/* <span className="absolute left-3 top-1/2  -translate-y-1/2 font-mono text-slate-400 text-xs">TZS</span> */}
                         <input
                           type="number"
                           step="0.01"
                           min="0.01"
                           required
-                          placeholder="TZS 0.00"
+                          placeholder="0.00"
                           value={expenseAmount}
                           onChange={(e) => setExpenseAmount(e.target.value)}
                           className="w-full pl-7 pr-3  py-2 text-xs rounded-lg border border-slate-300 bg-white font-mono tabular-nums font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -628,7 +623,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    {trip.expenses.length} Records · {formatTZS(totalExpenses, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total
+                    {trip.expenses.length} Records · {formatTsh(totalExpenses, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total
                   </h4>
                   <span className="text-xs hidden sm:flex text-slate-400">Live Synchronized</span>
                 </div>
@@ -658,7 +653,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                               </span>
                             </td>
                             <td className="py-2.5 px-2 font-mono tabular-nums font-bold text-slate-900 sm:px-3">
-                              {formatTZS(Number(exp.amount), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatTsh(Number(exp.amount), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="py-2.5 px-2 text-slate-600 sm:px-3">{exp.description || '—'}</td>
                             <td className="py-2.5 px-2 text-slate-400 font-mono tabular-nums whitespace-nowrap sm:px-3">
@@ -718,7 +713,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                     }
                     className="px-2 py-0.5 rounded bg-white hover:bg-orange-50 text-slate-700 text-xs border border-slate-200 transition"
                   >
-                    Drive Axle Tire (TZS 380)
+                    Drive Axle Tire (Tsh 380)
                   </button>
                   <button
                     type="button"
@@ -727,7 +722,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                     }
                     className="px-2 py-0.5 rounded bg-white hover:bg-orange-50 text-slate-700 text-xs border border-slate-200 transition"
                   >
-                    Air Brake Valve (TZS 45)
+                    Air Brake Valve (Tsh 45)
                   </button>
                   <button
                     type="button"
@@ -740,7 +735,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                     }
                     className="px-2 py-0.5 rounded bg-white hover:bg-orange-50 text-slate-700 text-xs border border-slate-200 transition"
                   >
-                    Fan Belt (TZS 110)
+                    Fan Belt (Tsh 110)
                   </button>
                   <button
                     type="button"
@@ -749,7 +744,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                     }
                     className="px-2 py-0.5 rounded bg-white hover:bg-orange-50 text-slate-700 text-xs border border-slate-200 transition"
                   >
-                    Fuel Filter (TZS 65)
+                    Fuel Filter (Tsh 65)
                   </button>
                   <button
                     type="button"
@@ -758,7 +753,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                     }
                     className="px-2 py-0.5 rounded bg-white hover:bg-orange-50 text-slate-700 text-xs border border-slate-200 transition"
                   >
-                    Hydraulic Seal (TZS 140)
+                    Hydraulic Seal (Tsh 140)
                   </button>
                 </div>
 
@@ -766,7 +761,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
                     <div>
                       <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        Part Name *
+                        Part / Service Name *
                       </label>
                       <input
                         type="text"
@@ -780,10 +775,10 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
 
                     <div>
                       <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        Part Price / Cost (TZS) *
+                        Part / Service Price (Tsh) *
                       </label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-slate-400 text-xs">TZS</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-slate-400 text-xs">Tsh</span>
                         <input
                           type="number"
                           step="0.01"
@@ -855,7 +850,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    {trip.spare_parts.length} Parts · {formatTZS(totalSpareParts, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total
+                    {trip.spare_parts.length} Parts · {formatTsh(totalSpareParts, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total
                   </h4>
                   <span className="text-xs hidden sm:flex text-slate-400">Live Synchronized</span>
                 </div>
@@ -869,7 +864,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                     <table className="min-w-[1120px] w-full text-left text-[13px] md:min-w-0 md:text-xs">
                       <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] uppercase font-bold tracking-wider md:text-[10px]">
                         <tr>
-                          <th className="py-2.5 px-2 sm:px-3">Part Name</th>
+                          <th className="py-2.5 px-2 sm:px-3">Part / Service Name</th>
                           <th className="py-2.5 px-2 sm:px-3">Price</th>
                           <th className="py-2.5 px-2 sm:px-3">Mechanic / Workshop</th>
                           <th className="py-2.5 px-2 sm:px-3">Description</th>
@@ -882,7 +877,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                           <tr key={sp.id} className="hover:bg-slate-50 align-top">
                             <td className="py-2.5 px-2 font-semibold text-slate-900 sm:px-3">{sp.part_name}</td>
                             <td className="py-2.5 px-2 font-mono tabular-nums font-bold text-slate-900 sm:px-3">
-                              {formatTZS(Number(sp.price), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatTsh(Number(sp.price), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="py-2.5 px-2 text-slate-600 sm:px-3">{sp.replaced_by || 'Field Workshop'}</td>
                             <td className="py-2.5 px-2 text-slate-500 sm:px-3">{sp.description || '—'}</td>
@@ -1209,7 +1204,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                       }`}
                     >
                       {item.type === 'departure' && '▶'}
-                      {item.type === 'expense' && 'TZS'}
+                      {item.type === 'expense' && 'Tsh'}
                       {item.type === 'spare_part' && '⚙'}
                       {item.type === 'delay' && '⏱'}
                     </div>
@@ -1227,7 +1222,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
 
                         {item.runningSpend !== undefined && (
                           <div className="font-mono tabular-nums text-slate-500 sm:text-[11px]">
-                            Spend: <strong className="text-slate-800">{formatTZS(item.runningSpend, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                            Spend: <strong className="text-slate-800">{formatTsh(item.runningSpend, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                           </div>
                         )}
                       </div>
