@@ -30,8 +30,28 @@ import {
 import { canEditTruckServiceRecord } from '../utils/truckService.ts';
 
 const STORAGE_KEY_PREFIX = 'jcq_fleet_db_v1_';
+const LEGACY_DATA_MIGRATED_KEY = `${STORAGE_KEY_PREFIX}legacy_migrated`;
 const DEFAULT_AUDIT_ACTOR = 'Local operator (unverified)';
 const MAX_AUDIT_LOGS = 2000;
+
+export interface DatabaseSnapshot {
+  trucks: Truck[];
+  truckServiceRecords: TruckServiceRecord[];
+  drivers: Driver[];
+  trips: Trip[];
+  expenses: Expense[];
+  spareParts: SparePart[];
+  invoices: Invoice[];
+  payments: Payment[];
+  auditLogs: AuditLog[];
+  auditActor: string;
+}
+
+interface RemotePersistence {
+  load: () => Promise<DatabaseSnapshot | null>;
+  save: (snapshot: DatabaseSnapshot) => Promise<void>;
+  onError: (error: unknown) => void;
+}
 
 class DatabaseStore {
   private trucks: Truck[] = [];
@@ -45,6 +65,9 @@ class DatabaseStore {
   private auditLogs: AuditLog[] = [];
   private auditActor = DEFAULT_AUDIT_ACTOR;
   private listeners: Set<() => void> = new Set();
+  private storageKeySuffix = '';
+  private remotePersistence?: RemotePersistence;
+  private remoteSaveQueue: Promise<void> = Promise.resolve();
 
   constructor() {
     this.loadFromStorage();
@@ -58,18 +81,22 @@ class DatabaseStore {
     }
   }
 
+  private storageKey(key: string) {
+    return `${STORAGE_KEY_PREFIX}${this.storageKeySuffix}${key}`;
+  }
+
   private loadFromStorage() {
     try {
-      const storedTrucks = localStorage.getItem(`${STORAGE_KEY_PREFIX}trucks`);
-      const storedTruckServiceRecords = localStorage.getItem(`${STORAGE_KEY_PREFIX}truck_service_records`);
-      const storedDrivers = localStorage.getItem(`${STORAGE_KEY_PREFIX}drivers`);
-      const storedTrips = localStorage.getItem(`${STORAGE_KEY_PREFIX}trips`);
-      const storedExpenses = localStorage.getItem(`${STORAGE_KEY_PREFIX}expenses`);
-      const storedSpareParts = localStorage.getItem(`${STORAGE_KEY_PREFIX}spare_parts`);
-      const storedInvoices = localStorage.getItem(`${STORAGE_KEY_PREFIX}invoices`);
-      const storedPayments = localStorage.getItem(`${STORAGE_KEY_PREFIX}payments`);
-      const storedAuditLogs = localStorage.getItem(`${STORAGE_KEY_PREFIX}audit_logs`);
-      const storedAuditActor = localStorage.getItem(`${STORAGE_KEY_PREFIX}audit_actor`);
+      const storedTrucks = localStorage.getItem(this.storageKey('trucks'));
+      const storedTruckServiceRecords = localStorage.getItem(this.storageKey('truck_service_records'));
+      const storedDrivers = localStorage.getItem(this.storageKey('drivers'));
+      const storedTrips = localStorage.getItem(this.storageKey('trips'));
+      const storedExpenses = localStorage.getItem(this.storageKey('expenses'));
+      const storedSpareParts = localStorage.getItem(this.storageKey('spare_parts'));
+      const storedInvoices = localStorage.getItem(this.storageKey('invoices'));
+      const storedPayments = localStorage.getItem(this.storageKey('payments'));
+      const storedAuditLogs = localStorage.getItem(this.storageKey('audit_logs'));
+      const storedAuditActor = localStorage.getItem(this.storageKey('audit_actor'));
 
       this.trucks = storedTrucks ? JSON.parse(storedTrucks) : [...INITIAL_TRUCKS];
       const savedTruckServiceRecords: TruckServiceRecord[] = storedTruckServiceRecords
@@ -100,22 +127,94 @@ class DatabaseStore {
     }
   }
 
-  private persist() {
+  private writeToLocalStorage() {
     try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}trucks`, JSON.stringify(this.trucks));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}truck_service_records`, JSON.stringify(this.truckServiceRecords));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}drivers`, JSON.stringify(this.drivers));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}trips`, JSON.stringify(this.trips));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}expenses`, JSON.stringify(this.expenses));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}spare_parts`, JSON.stringify(this.spareParts));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}invoices`, JSON.stringify(this.invoices));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}payments`, JSON.stringify(this.payments));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}audit_logs`, JSON.stringify(this.auditLogs));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}audit_actor`, this.auditActor);
+      localStorage.setItem(this.storageKey('trucks'), JSON.stringify(this.trucks));
+      localStorage.setItem(this.storageKey('truck_service_records'), JSON.stringify(this.truckServiceRecords));
+      localStorage.setItem(this.storageKey('drivers'), JSON.stringify(this.drivers));
+      localStorage.setItem(this.storageKey('trips'), JSON.stringify(this.trips));
+      localStorage.setItem(this.storageKey('expenses'), JSON.stringify(this.expenses));
+      localStorage.setItem(this.storageKey('spare_parts'), JSON.stringify(this.spareParts));
+      localStorage.setItem(this.storageKey('invoices'), JSON.stringify(this.invoices));
+      localStorage.setItem(this.storageKey('payments'), JSON.stringify(this.payments));
+      localStorage.setItem(this.storageKey('audit_logs'), JSON.stringify(this.auditLogs));
+      localStorage.setItem(this.storageKey('audit_actor'), this.auditActor);
     } catch (e) {
       console.error('Failed to persist to localStorage', e);
     }
+  }
+
+  private persist() {
+    this.writeToLocalStorage();
     this.notify();
+    if (this.remotePersistence) {
+      this.remoteSaveQueue = this.remoteSaveQueue
+        .then(() => this.remotePersistence?.save(this.getSnapshot()))
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          console.error('Failed to persist to Neon', error);
+          this.remotePersistence?.onError(error);
+        });
+    }
+  }
+
+  public getSnapshot(): DatabaseSnapshot {
+    return {
+      trucks: this.trucks,
+      truckServiceRecords: this.truckServiceRecords,
+      drivers: this.drivers,
+      trips: this.trips,
+      expenses: this.expenses,
+      spareParts: this.spareParts,
+      invoices: this.invoices,
+      payments: this.payments,
+      auditLogs: this.auditLogs,
+      auditActor: this.auditActor,
+    };
+  }
+
+  private applySnapshot(snapshot: DatabaseSnapshot) {
+    this.trucks = snapshot.trucks;
+    this.truckServiceRecords = snapshot.truckServiceRecords;
+    this.drivers = snapshot.drivers;
+    this.trips = snapshot.trips;
+    this.expenses = snapshot.expenses;
+    this.spareParts = snapshot.spareParts;
+    this.invoices = snapshot.invoices;
+    this.payments = snapshot.payments;
+    this.auditLogs = snapshot.auditLogs;
+    this.auditActor = snapshot.auditActor;
+  }
+
+  public async connectRemote(userId: string, persistence: RemotePersistence) {
+    this.remotePersistence = undefined;
+    const legacySnapshot = this.getSnapshot();
+    this.storageKeySuffix = `user_${encodeURIComponent(userId)}_`;
+    const hasUserCache = localStorage.getItem(this.storageKey('trucks')) !== null;
+    const legacyWasMigrated = localStorage.getItem(LEGACY_DATA_MIGRATED_KEY) === 'true';
+
+    if (hasUserCache || legacyWasMigrated) {
+      this.loadFromStorage();
+    } else {
+      this.applySnapshot(legacySnapshot);
+      this.writeToLocalStorage();
+    }
+
+    const remoteSnapshot = await persistence.load();
+    if (remoteSnapshot) {
+      this.applySnapshot(remoteSnapshot);
+      this.writeToLocalStorage();
+    } else {
+      await persistence.save(this.getSnapshot());
+    }
+
+    localStorage.setItem(LEGACY_DATA_MIGRATED_KEY, 'true');
+    this.remotePersistence = persistence;
+    this.notify();
+  }
+
+  public disconnectRemote() {
+    this.remotePersistence = undefined;
   }
 
   public subscribe(callback: () => void) {

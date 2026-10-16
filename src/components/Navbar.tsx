@@ -18,6 +18,7 @@ interface NavbarProps {
   stats: DatabaseStats;
   onResetDb: () => void;
   onOpenNewTripModal: () => void;
+  isSticky?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -26,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   stats,
   onResetDb,
   onOpenNewTripModal,
+  isSticky = true,
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Operations', icon: LayoutDashboard },
@@ -37,7 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900 border-b rounded-br-3xl sm:rounded-b-3xl border-slate-800 backdrop-blur-md text-white shadow-lg shadow-slate-900/40">
+    <header className={`${isSticky ? 'sticky' : 'relative'} top-0 z-40 bg-slate-900 border-b rounded-br-3xl sm:rounded-b-3xl border-slate-800 backdrop-blur-md text-white shadow-lg shadow-slate-900/40`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}

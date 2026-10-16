@@ -10,6 +10,7 @@ import { SchemaStudioView } from './components/SchemaStudioView.tsx';
 import { TripDetailModal } from './components/TripDetailModal.tsx';
 import { NewTripModal } from './components/NewTripModal.tsx';
 import { UpdateTripModal } from './components/UpdateTripModal.tsx';
+import { NeonAuthGate } from './components/NeonAuthGate.tsx';
 import { dbStore } from './db/store.ts';
 import {
   Truck,
@@ -30,7 +31,7 @@ import {
   AuditLog,
 } from './types/database.ts';
 
-export default function App() {
+function FleetTripManagerApp() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [updatingTripId, setUpdatingTripId] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export default function App() {
         stats={stats}
         onResetDb={() => setShowResetConfirm(true)}
         onOpenNewTripModal={() => setShowNewTripModal(true)}
+        isSticky={activeTab !== 'admin'}
       />
 
       {/* Reset Success Toast */}
@@ -251,5 +253,13 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <NeonAuthGate>
+      <FleetTripManagerApp />
+    </NeonAuthGate>
   );
 }

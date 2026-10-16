@@ -11,8 +11,6 @@ import {
   Receipt,
   UserRound,
   LayoutDashboard,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import {
   EnrichedTrip,
@@ -91,7 +89,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [datePreset, setDatePreset] = useState<DatePreset>('today');
   const [today, setToday] = useState(() => new Date());
   const [activeSection, setActiveSection] = useState<DashboardSection>('overview');
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [showBudgetInChart, setShowBudgetInChart] = useState(false);
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [customFrom, setCustomFrom] = useState('');
@@ -597,50 +594,46 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 text-white shadow-lg sm:p-7">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.2),_transparent_38%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.15),_transparent_32%)]" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-2 sm:flex items-center hidden gap-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300">
+      {/* Top Banner & Schema Announcement */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white ">
+        <div className="absolute -right-10 bottom-0 h-28 w-28 rotate-45 rounded-tl-2xl bg-slate-950/20 shadow-[-10px_-10px_18px_rgba(15,23,42,0.35)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(148,163,184,0.16),_transparent_28%)]" />
+
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-xl">
+            <div className="mb-1 flex items-center space-x-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
               <BarChart3 className="h-4 w-4" />
               <span>Management overview</span>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Admin Dashboard</h1>
-            <p className="mt-2 max-w-2xl text-sm hidden sm:flex leading-relaxed text-slate-300">
+          </div>
+          <div className="flex-col flex-wrap items-center gap-3">
+            <p className="mt-1 mb-2 max-w-2xl text-sm leading-relaxed text-slate-200/90">
               Trace budgets, invoices, received payments, operational costs, and every recorded change back to its source.
             </p>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border justify-between border-white/10 bg-white/5 px-2  py-2 text-xs text-slate-200">
-            <div className="flex items-center gap-1">
-              <Truck className="h-4 w-4 text-amber-300" />
-              <span>{trucks.length} trucks</span>
-            </div>
-            <span className="text-slate-500">·</span>
-            <div className="flex items-center gap-1">
-              <Truck className="h-4 w-4 text-amber-300" />
-              <span>{drivers.length} drivers</span>
+            <div className="flex items-center gap-2 rounded-xl border justify-between border-white/10 bg-white/5 px-2  py-2 text-xs text-slate-200">
+              <div className="flex items-center gap-1">
+                <Truck className="h-4 w-4 text-amber-300" />
+                <span>{trucks.length} trucks</span>
+              </div>
+              <span className="text-slate-500">·</span>
+              <div className="flex items-center gap-1">
+                <Truck className="h-4 w-4 text-amber-300" />
+                <span>{drivers.length} drivers</span>
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <aside
-          aria-label="Admin dashboard navigation"
-          className={`w-full shrink-0 rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition-[width] lg:sticky lg:top-20 ${sidebarExpanded ? 'lg:w-52' : 'lg:w-[4.25rem]'}`}
-        >
-          <div className="mb-2 flex items-center justify-between px-2 py-1 lg:mb-2">
-            {sidebarExpanded && <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Workspace</span>}
-            <button
-              type="button"
-              aria-label={sidebarExpanded ? 'Collapse dashboard navigation' : 'Expand dashboard navigation'}
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className="ml-auto hidden rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:inline-flex"
-            >
-              {sidebarExpanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
+      <div className="space-y-4">
+        <div className="sticky top-1 z-20 -mx-4 w-[calc(100%+2rem)] rounded-none border-x-0 border-slate-200 bg-white/95 p-2 shadow-lg shadow-slate-900/15 backdrop-blur-sm sm:mx-0 sm:w-auto sm:rounded-2xl sm:border-x sm:p-3 sm:shadow-sm">
+          <div className="mb-2 flex items-center justify-between px-1 sm:mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Dashboard workspace</span>
+            <span className="text-[10px] font-semibold text-slate-400">Select a section</span>
           </div>
-          <nav className="grid grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-1" aria-label="Dashboard sections">
+          <nav className="-mx-2 overflow-x-auto px-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0" aria-label="Dashboard sections">
+            <div className="flex min-w-max gap-1 rounded-xl bg-slate-100/80 p-1 sm:gap-2 lg:min-w-0 lg:w-full">
             {([
               { id: 'overview', label: 'Overview', icon: LayoutDashboard },
               { id: 'billing', label: 'Billing', icon: Receipt },
@@ -652,19 +645,27 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 type="button"
                 onClick={() => setActiveSection(id)}
                 aria-current={activeSection === id ? 'page' : undefined}
-                title={!sidebarExpanded ? label : undefined}
-                className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-xs font-semibold transition lg:justify-start ${activeSection === id ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+                className={`flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition sm:min-w-32 sm:px-4 lg:min-w-0 lg:flex-1 ${
+                  activeSection === id
+                    ? 'bg-slate-900 text-white shadow-md shadow-slate-900/15'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className={sidebarExpanded ? 'truncate' : 'truncate lg:sr-only'}>{label}</span>
+                <Icon className={`h-4 w-4 shrink-0 ${activeSection === id ? 'text-amber-300' : 'text-slate-400'}`} />
+                <span>{label}</span>
               </button>
             ))}
+            </div>
           </nav>
-        </aside>
+        </div>
 
-        <div className="min-w-0 flex-1 space-y-4">
+        <div className="min-w-0 space-y-4">
           <section aria-label="Financial key performance indicators and report period" className="grid grid-cols-1 gap-3">
-            <AdminSummaryDropdown id="admin-financial-summary-cards" label="Financial Summary">
+            <AdminSummaryDropdown
+              id="admin-financial-summary-cards"
+              label="Financial Summary"
+              openOnLargeScreens
+            >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                   label="Cash collected"
@@ -771,10 +772,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               {rangeIsInvalid && <p role="alert" className="mt-2 text-[11px] font-semibold text-rose-700">Start date must be on or before end date.</p>}
             </div>
           </section>
-
-          <p className="px-1 text-[11px] leading-relaxed text-slate-500">
-            Completed-trip budgets and saved costs use completion date; open-trip costs and fleet service use transaction dates. Invoices use issue dates, collections use received dates, and outstanding shows the current balance on invoices issued in this period.
-          </p>
 
           <AdminPriorityWarnings
             issues={dataQualityIssues}

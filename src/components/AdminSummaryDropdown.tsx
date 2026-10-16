@@ -1,17 +1,41 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface AdminSummaryDropdownProps {
   id: string;
   label: string;
   children: React.ReactNode;
+  defaultOpen?: boolean;
+  openOnLargeScreens?: boolean;
+  showToggleOnLargeScreens?: boolean;
 }
 
 export const AdminSummaryDropdown: React.FC<AdminSummaryDropdownProps> = ({
   id,
   label,
   children,
+  defaultOpen = false,
+  openOnLargeScreens = false,
+  showToggleOnLargeScreens = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() =>
+    defaultOpen ||
+    (openOnLargeScreens &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 1024px)').matches),
+  );
+
+  useEffect(() => {
+    if (!openOnLargeScreens) return;
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const syncOpenState = (event: MediaQueryListEvent | MediaQueryList) => {
+      setIsOpen(event.matches);
+    };
+
+    syncOpenState(mediaQuery);
+    mediaQuery.addEventListener('change', syncOpenState);
+    return () => mediaQuery.removeEventListener('change', syncOpenState);
+  }, [openOnLargeScreens]);
 
   return (
     <div className="space-y-3">
@@ -21,6 +45,8 @@ export const AdminSummaryDropdown: React.FC<AdminSummaryDropdownProps> = ({
         aria-controls={id}
         onClick={() => setIsOpen((open) => !open)}
         className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm font-bold animate-pulse ${
+          showToggleOnLargeScreens ? 'lg:flex' : 'lg:hidden'
+        } ${
           isOpen
             ? 'border-green-700 bg-green-700/80 text-white shadow-[0_0_14px_2px_rgba(21,128,61,0.8)]'
             : 'border-green-500 bg-green-500/40 text-green-950 shadow-[0_0_14px_2px_rgba(34,197,94,0.7)]'
