@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Receipt } from 'lucide-react';
 import { EnrichedTrip, Invoice, Payment, PaymentMethod } from '../types/database.ts';
 import { formatTsh } from '../utils/currency.ts';
 import { AccountingMetric } from './AdminDashboardPrimitives.tsx';
 import { DateRange, formatDate, getInvoiceStatus, isWithinRange } from './adminDashboardUtils.ts';
+import { ReasonModal } from './ReasonModal.tsx';
+import { printInvoice } from './printInvoice.ts';
 
 interface AdminBillingSectionProps {
   invoicedAmount: number;
@@ -41,6 +43,10 @@ interface AdminBillingSectionProps {
   onRecordPayment: (event: React.FormEvent<HTMLFormElement>) => void;
   accountingError: string;
   accountingSuccess: string;
+  allInvoices: Invoice[];
+  allPayments: Payment[];
+  onVoidInvoice: (invoiceId: string, reason: string) => void;
+  onReversePayment: (paymentId: string, reason: string) => void;
 }
 
 export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
@@ -79,7 +85,48 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
   onRecordPayment,
   accountingError,
   accountingSuccess,
-}) => (
+  allInvoices,
+  allPayments,
+  onVoidInvoice,
+  onReversePayment,
+}) => {
+  const [voidingInvoice, setVoidingInvoice] = useState<Invoice | null>(null);
+  const [reversingPayment, setReversingPayment] = useState<Payment | null>(null);
+  const [actionError, setActionError] = useState('');
+  const paidFor = (invoiceId: string) =>
+    payments.filter((payment) => payment.invoice_id === invoiceId).reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const tripFor = (invoice: Invoice) => trips.find((item) => item.id === invoice.trip_id);
+  const handlePrint = (invoice: Invoice) => {
+    setActionError('');
+    try {
+      printInvoice(invoice, tripFor(invoice), paidFor(invoice.id));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'The invoice could not be printed.');
+    }
+  };
+  const voidedInvoices = allInvoices.filter((invoice) => invoice.voided_at && isWithinRange(invoice.issued_at, reportRange));
+  const statusClass = (status: string) =>
+    status === 'Paid' ? 'bg-emerald-50 text-emerald-700'
+      : status === 'Overdue' ? 'bg-rose-50 text-rose-700'
+        : status === 'Partially paid' ? 'bg-blue-50 text-blue-700'
+          : 'bg-amber-50 text-amber-700';
+  const actionButtons = (invoice: Invoice, paid: number) => (
+    <div className="flex gap-1.5">
+      <button type="button" onClick={() => handlePrint(invoice)} className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50">
+        Print
+      </button>
+      <button
+        type="button"
+        disabled={paid > 0}
+        title={paid > 0 ? 'Reverse the payments on this invoice before voiding it.' : undefined}
+        onClick={() => setVoidingInvoice(invoice)}
+        className="rounded-md border border-rose-200 px-2 py-1 text-[10px] font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Void
+      </button>
+    </div>
+  );
+  return (
 <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-2">
           <div className="flex items-center gap-2">
@@ -94,8 +141,37 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
             <AccountingMetric label="Cash received" value={formatTsh(collectedCash)} />
             <AccountingMetric label="Balance due" value={formatTsh(outstandingBalance)} />
           </div>
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
-            <table className="w-full min-w-[660px] text-left text-xs">
+          {actionError && <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{actionError}</p>}
+          <ul className="mt-4 space-y-2 sm:hidden">
+            {reportInvoices.map((invoice) => {
+              const trip = tripFor(invoice);
+              const paid = paidFor(invoice.id);
+              const status = getInvoiceStatus(invoice, payments);
+              return (
+                <li key={invoice.id} className="rounded-lg border border-slate-100 p-3 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="block font-bold text-slate-800">{invoice.invoice_number}</span>
+                      <span className="block truncate text-[10px] text-slate-500">{trip ? `${trip.origin} → ${trip.destination}` : 'Trip unavailable'}</span>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${statusClass(status)}`}>{status}</span>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-3 gap-2 text-[10px]">
+                    <div><dt className="text-slate-500">Amount</dt><dd className="font-semibold text-slate-800">{formatTsh(invoice.amount)}</dd></div>
+                    <div><dt className="text-slate-500">Received</dt><dd className="font-semibold text-emerald-700">{formatTsh(paid)}</dd></div>
+                    <div><dt className="text-slate-500">Balance</dt><dd className="font-bold text-slate-900">{formatTsh(Math.max(0, invoice.amount - paid))}</dd></div>
+                  </dl>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-slate-500">Due {formatDate(invoice.due_at)}</span>
+                    {actionButtons(invoice, paid)}
+                  </div>
+                </li>
+              );
+            })}
+            {reportInvoices.length === 0 && <li className="py-6 text-center text-xs text-slate-500">No invoices in this report period.</li>}
+          </ul>
+          <div className="mt-4 hidden overflow-x-auto rounded-lg border border-slate-100 sm:block">
+            <table className="w-full min-w-[720px] text-left text-xs">
               <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5">Invoice</th>
@@ -104,6 +180,7 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
                   <th className="px-3 py-2.5 text-right">Received</th>
                   <th className="px-3 py-2.5 text-right">Balance</th>
                   <th className="px-3 py-2.5">Status / due</th>
+                  <th className="px-3 py-2.5"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -134,11 +211,12 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
                         }`}>{status}</span>
                         <span className="mt-1 block text-[10px] text-slate-500">Due {formatDate(invoice.due_at)}</span>
                       </td>
+                      <td className="px-3 py-2.5">{actionButtons(invoice, paid)}</td>
                     </tr>
                   );
                 })}
                 {reportInvoices.length === 0 && (
-                  <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-500">No invoices in this report period.</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">No invoices in this report period.</td></tr>
                 )}
               </tbody>
             </table>
@@ -154,7 +232,7 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
               ).length})
             </summary>
             <div className="max-h-56 divide-y divide-slate-100 overflow-y-auto border-t border-slate-100 px-3">
-              {payments
+              {allPayments
                 .filter((payment) =>
                   reportTripInvoices.some((invoice) => invoice.id === payment.invoice_id) &&
                   isWithinRange(payment.paid_at, reportRange),
@@ -166,8 +244,18 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
                       <div className="min-w-0">
                         <span className="block font-semibold text-slate-800">{invoice?.invoice_number || 'Invoice unavailable'} · {payment.method}</span>
                         <span className="text-slate-500">{formatDate(payment.paid_at)}{payment.reference ? ` · Ref ${payment.reference}` : ''}</span>
+                        {payment.reversed_at && (
+                          <span className="block text-rose-700">Reversed {formatDate(payment.reversed_at)}: {payment.reversal_reason}</span>
+                        )}
                       </div>
-                      <strong className="shrink-0 text-emerald-700">{formatTsh(payment.amount)}</strong>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <strong className={payment.reversed_at ? 'text-slate-400 line-through' : 'text-emerald-700'}>{formatTsh(payment.amount)}</strong>
+                        {!payment.reversed_at && (
+                          <button type="button" onClick={() => setReversingPayment(payment)} className="text-[10px] font-bold text-rose-700 hover:underline">
+                            Reverse
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -177,6 +265,40 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
               ).length === 0 && <p className="py-4 text-center text-[11px] text-slate-500">No payments received in this period.</p>}
             </div>
           </details>
+          {voidedInvoices.length > 0 && (
+            <details className="mt-3 rounded-lg border border-slate-100">
+              <summary className="cursor-pointer px-3 py-2.5 text-xs font-bold text-slate-700">Voided invoices ({voidedInvoices.length})</summary>
+              <div className="divide-y divide-slate-100 border-t border-slate-100 px-3">
+                {voidedInvoices.map((invoice) => (
+                  <div key={invoice.id} className="flex items-start justify-between gap-3 py-2 text-[11px]">
+                    <div className="min-w-0">
+                      <span className="block font-semibold text-slate-800">{invoice.invoice_number}</span>
+                      <span className="text-rose-700">Voided {formatDate(invoice.voided_at as string)}: {invoice.void_reason}</span>
+                    </div>
+                    <strong className="shrink-0 text-slate-400 line-through">{formatTsh(invoice.amount)}</strong>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          {voidingInvoice && (
+            <ReasonModal
+              title={`Void invoice ${voidingInvoice.invoice_number}?`}
+              description="The invoice stays on record marked as void and stops counting towards billing totals. This cannot be undone; issue a new invoice if needed."
+              confirmLabel="Void invoice"
+              onConfirm={(reason) => onVoidInvoice(voidingInvoice.id, reason)}
+              onClose={() => setVoidingInvoice(null)}
+            />
+          )}
+          {reversingPayment && (
+            <ReasonModal
+              title={`Reverse ${formatTsh(reversingPayment.amount)} payment?`}
+              description="The payment stays on record marked as reversed and its amount is added back to the invoice balance."
+              confirmLabel="Reverse payment"
+              onConfirm={(reason) => onReversePayment(reversingPayment.id, reason)}
+              onClose={() => setReversingPayment(null)}
+            />
+          )}
         </div>
 
         <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -204,7 +326,7 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
               <input
                 type="number"
                 min="0.01"
-                step="0.01"
+                step="1"
                 value={invoiceAmount}
                 onChange={(event) => onInvoiceAmountChange(event.target.value)}
                 required
@@ -298,7 +420,7 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
                   <input
                     type="number"
                     min="0.01"
-                    step="0.01"
+                    step="1"
                     max={selectedPaymentBalance}
                     value={paymentAmount}
                     onChange={(event) => onPaymentAmountChange(event.target.value)}
@@ -356,3 +478,4 @@ export const AdminBillingSection: React.FC<AdminBillingSectionProps> = ({
         </div>
       </section>
 );
+};

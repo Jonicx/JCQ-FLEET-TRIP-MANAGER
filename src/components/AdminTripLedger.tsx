@@ -60,7 +60,38 @@ export const AdminTripLedger: React.FC<AdminTripLedgerProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <ul className="divide-y divide-slate-100 md:hidden">
+          {filteredTrips.map((trip) => {
+            const breakdown = getTripCostBreakdown(trip, reportRange);
+            return (
+              <li key={trip.id}>
+                <button type="button" onClick={() => onSelectTrip(trip.id)} className="block w-full p-4 text-left hover:bg-slate-50 focus:bg-amber-50 focus:outline-none">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-slate-900">{trip.origin} → {trip.destination}</p>
+                      <p className="text-[11px] text-slate-500">{formatDate(trip.completed_at || trip.scheduled_start)} · {trip.driver?.full_name || 'Unassigned'} · {trip.truck?.license_plate || 'Unassigned'}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
+                      trip.status === 'Completed' ? 'bg-emerald-50 text-emerald-700' : trip.status === 'Ongoing' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+                    }`}>{trip.status}</span>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                    <div><dt className="text-slate-500">Budget</dt><dd className="font-semibold text-slate-800">{formatTsh(trip.budget_allocated)}</dd></div>
+                    <div><dt className="text-slate-500">Costs</dt><dd className="text-slate-800">{formatTsh(breakdown.total)}</dd></div>
+                    <div>
+                      <dt className="text-slate-500">Variance</dt>
+                      <dd className={`font-bold ${trip.status !== 'Completed' ? 'text-slate-400' : trip.profit_loss < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {trip.status === 'Completed' ? formatTsh(trip.profit_loss) : 'Not finalized'}
+                      </dd>
+                    </div>
+                  </dl>
+                </button>
+              </li>
+            );
+          })}
+          {filteredTrips.length === 0 && <li className="p-6 text-center text-xs text-slate-500">No trips match this report.</li>}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[940px] border-collapse text-left text-xs">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
               <tr>

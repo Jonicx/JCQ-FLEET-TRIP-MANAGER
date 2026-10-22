@@ -15,6 +15,7 @@ import {
 import { Expense, SparePart, EnrichedTrip, ExpenseType, Truck, TruckServiceRecord, TruckServiceType } from '../types/database.ts';
 import { formatTsh } from '../utils/currency.ts';
 import { canEditTruckServiceRecord } from '../utils/truckService.ts';
+import { LedgerEntry, LedgerEntryModal, LedgerEntryValues } from './LedgerEntryModal.tsx';
 
 interface ExpensesAndPartsViewProps {
   expenses: Expense[];
@@ -24,6 +25,7 @@ interface ExpensesAndPartsViewProps {
   trips: EnrichedTrip[];
   onDeleteExpense: (id: string) => void;
   onDeleteSparePart: (id: string) => void;
+  onSaveEntry: (kind: LedgerEntry['kind'], values: LedgerEntryValues, id?: string) => void;
   onUpdateTruckServiceRecord: (
     id: string,
     updates: Pick<TruckServiceRecord, 'record_type' | 'item_name' | 'price' | 'mechanic_name' | 'service_location' | 'timestamp'>
@@ -39,9 +41,12 @@ export const ExpensesAndPartsView: React.FC<ExpensesAndPartsViewProps> = ({
   trips,
   onDeleteExpense,
   onDeleteSparePart,
+  onSaveEntry,
   onUpdateTruckServiceRecord,
   onSelectTrip,
 }) => {
+  const [ledgerEntry, setLedgerEntry] = useState<LedgerEntry | null>(null);
+  const [entryError, setEntryError] = useState<string | null>(null);
   const [activeLedger, setActiveLedger] = useState<'all' | 'expenses' | 'spares' | 'services'>('all');
   const [selectedType, setSelectedType] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -325,6 +330,7 @@ export const ExpensesAndPartsView: React.FC<ExpensesAndPartsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center space-x-2">
           <span>Transit Expenses &amp; Maintenance Ledger</span>
@@ -336,6 +342,31 @@ export const ExpensesAndPartsView: React.FC<ExpensesAndPartsViewProps> = ({
           Audited breakdown of operational costs: Fuel, Tolls, Police/Bribes checkpoint clearance, Food, and Roadside Spare Parts
         </p>
       </div>
+        <div className="flex shrink-0 gap-2 self-start">
+          <button
+            type="button"
+            onClick={() => setLedgerEntry({ kind: 'expense' })}
+            className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold transition shadow-sm"
+          >
+            <Receipt className="h-4 w-4" />
+            <span>Add Expense</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLedgerEntry({ kind: 'spare_part' })}
+            className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm"
+          >
+            <Wrench className="h-4 w-4" />
+            <span>Add Spare Part</span>
+          </button>
+        </div>
+      </div>
+      {entryError && (
+        <div role="alert" className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs">{entryError}</div>
+      )}
+      {ledgerEntry && (
+        <LedgerEntryModal entry={ledgerEntry} trips={trips} onSave={onSaveEntry} onClose={() => setLedgerEntry(null)} />
+      )}
 
       {/* Spend Breakdown Cards */}
       <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -631,12 +662,36 @@ export const ExpensesAndPartsView: React.FC<ExpensesAndPartsViewProps> = ({
                           <span>View</span>
                         </button>
                       ) : (
+                        <span className="inline-flex items-center gap-1">
+                        {linkedTrip?.status !== 'Completed' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEntryError(null);
+                              if (item.kind === 'expense') {
+                                setLedgerEntry({ kind: 'expense', record: expenses.find((expense) => expense.id === item.id) });
+                              } else {
+                                setLedgerEntry({ kind: 'spare_part', record: spareParts.find((part) => part.id === item.id) });
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition"
+                            title="Edit record"
+                            aria-label={`Edit ${item.title}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                         onClick={() => {
-                          if (item.kind === 'expense') {
-                            onDeleteExpense(item.id);
-                          } else if (item.kind === 'spare_part') {
-                            onDeleteSparePart(item.id);
+                          setEntryError(null);
+                          try {
+                            if (item.kind === 'expense') {
+                              onDeleteExpense(item.id);
+                            } else if (item.kind === 'spare_part') {
+                              onDeleteSparePart(item.id);
+                            }
+                          } catch (deleteError) {
+                            setEntryError(deleteError instanceof Error ? deleteError.message : 'The record could not be deleted.');
                           }
                         }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
@@ -644,6 +699,7 @@ export const ExpensesAndPartsView: React.FC<ExpensesAndPartsViewProps> = ({
                       >
                         <Trash2 className="h-4 w-4" />
                         </button>
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -726,7 +782,7 @@ export const ExpensesAndPartsView: React.FC<ExpensesAndPartsViewProps> = ({
                         required
                         type="number"
                         min="0"
-                        step="0.01"
+                        step="1"
                         value={serviceEditPrice}
                         onChange={(event) => setServiceEditPrice(event.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"

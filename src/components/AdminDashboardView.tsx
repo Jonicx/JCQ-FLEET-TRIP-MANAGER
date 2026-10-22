@@ -17,7 +17,7 @@ import {
   Driver,
   Truck as TruckRecord,
   TruckServiceRecord,
-  Invoice,
+  Invoice, 
   Payment,
   PaymentMethod,
   AuditLog,
@@ -29,6 +29,7 @@ import { AdminBillingSection } from './AdminBillingSection.tsx';
 import { AdminDataQualityPanel, AdminPriorityWarnings } from './AdminDataQualityPanel.tsx';
 import { AdminOverviewSection } from './AdminOverviewSection.tsx';
 import { AdminTripLedger } from './AdminTripLedger.tsx';
+import { TeamAccessPanel } from './TeamAccessPanel.tsx';
 import { DateRange, formatDate, getInvoiceStatus, getTripCostBreakdown, isWithinRange } from './adminDashboardUtils.ts';
 
 interface AdminDashboardViewProps {
@@ -39,11 +40,11 @@ interface AdminDashboardViewProps {
   invoices: Invoice[];
   payments: Payment[];
   auditLogs: AuditLog[];
-  auditActor: string;
   onSelectTrip: (tripId: string) => void;
   onCreateInvoice: (data: Omit<Invoice, 'id' | 'created_at' | 'invoice_number'> & { invoice_number?: string }) => Invoice;
   onCreatePayment: (data: Omit<Payment, 'id' | 'created_at'>) => Payment;
-  onUpdateAuditActor: (actor: string) => string;
+  onVoidInvoice: (invoiceId: string, reason: string) => void;
+  onReversePayment: (paymentId: string, reason: string) => void;
 }
 
 type LedgerFilter = 'All' | EnrichedTrip['status'];
@@ -75,15 +76,17 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   trucks,
   drivers,
   truckServiceRecords,
-  invoices,
-  payments,
+  invoices: allInvoices,
+  payments: allPayments,
   auditLogs,
-  auditActor,
   onSelectTrip,
   onCreateInvoice,
   onCreatePayment,
-  onUpdateAuditActor,
+  onVoidInvoice,
+  onReversePayment,
 }) => {
+  const invoices = useMemo(() => allInvoices.filter((invoice) => !invoice.voided_at), [allInvoices]);
+  const payments = useMemo(() => allPayments.filter((payment) => !payment.reversed_at), [allPayments]);
   const [filter, setFilter] = useState<LedgerFilter>('All');
   const [search, setSearch] = useState('');
   const [datePreset, setDatePreset] = useState<DatePreset>('today');
@@ -94,7 +97,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [expandedTripId, setExpandedTripId] = useState<string | null>(null);
-  const [operatorDraft, setOperatorDraft] = useState(auditActor);
   const [invoiceTripId, setInvoiceTripId] = useState('');
   const [invoiceAmount, setInvoiceAmount] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -111,9 +113,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [paymentPaidAt, setPaymentPaidAt] = useState(() => dateInputValue(new Date()));
   const [accountingError, setAccountingError] = useState('');
   const [accountingSuccess, setAccountingSuccess] = useState('');
-  const [auditActorError, setAuditActorError] = useState('');
 
-  useEffect(() => setOperatorDraft(auditActor), [auditActor]);
   useEffect(() => {
     const now = new Date();
     const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -504,16 +504,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }
   };
 
-  const handleSaveAuditActor = () => {
-    setAuditActorError('');
-    try {
-      const savedName = onUpdateAuditActor(operatorDraft);
-      setOperatorDraft(savedName);
-    } catch (error) {
-      setAuditActorError(error instanceof Error ? error.message : 'Operator name could not be saved.');
-    }
-  };
-
   const exportLedger = () => {
     const rows = [
       ['Report period', reportPeriodLabel],
@@ -838,6 +828,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           onRecordPayment={handleRecordPayment}
           accountingError={accountingError}
           accountingSuccess={accountingSuccess}
+          allInvoices={allInvoices}
+          allPayments={allPayments}
+          onVoidInvoice={onVoidInvoice}
+          onReversePayment={onReversePayment}
         />
       )}
 
@@ -923,7 +917,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <History className="h-4 w-4 text-blue-600" />
                 <h2 className="text-sm font-bold text-slate-900">Audit history</h2>
               </div>
-              <p className="mt-1 text-xs text-slate-500">Financial and operational changes attributed to the locally named operator.</p>
+              <p className="mt-1 text-xs text-slate-500">Every change, attributed to the signed-in team member who made it.</p>
             </div>
             <span className="whitespace-nowrap text-[10px] font-semibold text-slate-500">{auditLogs.length} retained</span>
           </div>
@@ -962,40 +956,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             )}
           </div>
           <p className="border-t border-slate-100 px-4 py-3 text-[10px] leading-relaxed text-slate-500 sm:px-5">
-            This browser-only demo retains up to 2,000 local events. It is not tamper-proof or shared between users; authenticated server-side audit logging is required for a legally attributable audit trail.
+            Audit events are written by the server from the verified Neon Auth account and cannot be edited or deleted. The latest 2,000 events are shown.
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-center gap-2">
-            <UserRound className="h-4 w-4 text-slate-600" />
-            <h2 className="text-sm font-bold text-slate-900">Audit attribution</h2>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Set the operator name stored on future changes. This name is self-reported; no sign-in or identity verification is configured.
-          </p>
-          <label className="mt-4 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Operator name
-            <input
-              value={operatorDraft}
-              onChange={(event) => setOperatorDraft(event.target.value)}
-              maxLength={100}
-              aria-label="Audit operator name"
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium normal-case tracking-normal text-slate-700"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleSaveAuditActor}
-            className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-700"
-          >
-            Save operator name
-          </button>
-          {auditActorError && <p role="alert" className="mt-2 text-xs font-semibold text-rose-700">{auditActorError}</p>}
-          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
-            Invoice and payment records are append-only in this interface. Trip deletion is blocked when invoices exist so accounting references remain intact.
-          </div>
-        </div>
+        <TeamAccessPanel />
       </section>}
         </div>
       </div>

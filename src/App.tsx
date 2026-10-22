@@ -1,17 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
-import { AdminDashboardView } from './components/AdminDashboardView.tsx';
 import { TripsView } from './components/TripsView.tsx';
 import { TrucksView } from './components/TrucksView.tsx';
 import { DriversView } from './components/DriversView.tsx';
 import { ExpensesAndPartsView } from './components/ExpensesAndPartsView.tsx';
-import { SchemaStudioView } from './components/SchemaStudioView.tsx';
 import { TripDetailModal } from './components/TripDetailModal.tsx';
 import { NewTripModal } from './components/NewTripModal.tsx';
 import { UpdateTripModal } from './components/UpdateTripModal.tsx';
+import { TripEditModal } from './components/TripEditModal.tsx';
 import { NeonAuthGate } from './components/NeonAuthGate.tsx';
+import { ProfileModal } from './components/ProfileModal.tsx';
 import { dbStore } from './db/store.ts';
+import { UserProvider, useUser } from "./contexts/UserContext";
+import { updateCurrentUser } from './neon.ts';
+
+interface FleetTripManagerAppProps {
+  signOutFn: (() => Promise<void>) | null;
+}
+
+const AdminDashboardView = lazy(() =>
+  import('./components/AdminDashboardView.tsx').then((module) => ({ default: module.AdminDashboardView })),
+);
+const SchemaStudioView = lazy(() =>
+  import('./components/SchemaStudioView.tsx').then((module) => ({ default: module.SchemaStudioView })),
+);
 import {
   Truck,
   Driver,
@@ -32,12 +45,16 @@ import {
 } from './types/database.ts';
 
 function FleetTripManagerApp() {
+  const { userName, userEmail, userRole, profilePictureId, setUserInfo } = useUser();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [updatingTripId, setUpdatingTripId] = useState<string | null>(null);
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [showNewTripModal, setShowNewTripModal] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetSuccessToast, setResetSuccessToast] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [signOutFn, setSignOutFn] = useState<(() => Promise<void>) | null>(null);
 
   // Reactive DB store state
   const [trucks, setTrucks] = useState<Truck[]>(() => dbStore.getTrucks());
@@ -75,8 +92,10 @@ function FleetTripManagerApp() {
     };
   }, []);
 
+  const isAdmin = dbStore.getRole() === 'Admin';
   const selectedTrip = selectedTripId ? dbStore.getEnrichedTrip(selectedTripId) : null;
   const updatingTrip = updatingTripId ? dbStore.getEnrichedTrip(updatingTripId) : null;
+  const editingTrip = editingTripId ? dbStore.getEnrichedTrip(editingTripId) : null;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -87,7 +106,13 @@ function FleetTripManagerApp() {
         stats={stats}
         onResetDb={() => setShowResetConfirm(true)}
         onOpenNewTripModal={() => setShowNewTripModal(true)}
+        userName={userName}
+        userEmail={userEmail}
+        profilePictureId={profilePictureId}
+        onSignOut={signOutFn ? () => signOutFn() : undefined}
+        onOpenProfile={() => setShowProfileModal(true)}
         isSticky={activeTab !== 'admin'}
+        isAdmin={isAdmin}
       />
 
       {/* Reset Success Toast */}
@@ -99,6 +124,9 @@ function FleetTripManagerApp() {
 
       {/* Main Workspace Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Suspense
+          fallback={<p role="status" className="py-16 text-center text-sm font-semibold text-slate-500">Loading...</p>}
+        >
         {activeTab === 'dashboard' && (
           <DashboardView
             stats={stats}
@@ -110,7 +138,7 @@ function FleetTripManagerApp() {
           />
         )}
 
-        {activeTab === 'admin' && (
+        {activeTab === 'admin' && isAdmin && (
           <AdminDashboardView
             trips={enrichedTrips}
             trucks={trucks}
@@ -119,11 +147,11 @@ function FleetTripManagerApp() {
             invoices={invoices}
             payments={payments}
             auditLogs={auditLogs}
-            auditActor={auditActor}
             onSelectTrip={(id) => setSelectedTripId(id)}
             onCreateInvoice={(data) => dbStore.createInvoice(data)}
             onCreatePayment={(data) => dbStore.createPayment(data)}
-            onUpdateAuditActor={(actor) => dbStore.setAuditActor(actor)}
+            onVoidInvoice={(id, reason) => dbStore.voidInvoice(id, reason)}
+            onReversePayment={(id, reason) => dbStore.reversePayment(id, reason)}
           />
         )}
 
@@ -135,6 +163,7 @@ function FleetTripManagerApp() {
             onOpenNewTripModal={() => setShowNewTripModal(true)}
             onUpdateTripStatus={(id, status) => dbStore.updateTrip(id, { status })}
             onDeleteTrip={(id) => dbStore.deleteTrip(id)}
+            onEditTrip={(id) => setEditingTripId(id)}
           />
         )}
 
@@ -148,6 +177,7 @@ function FleetTripManagerApp() {
             onUpdateServiceRecord={(id, updates) => dbStore.updateTruckServiceRecord(id, updates)}
             onUpdateTruckStatus={(id, status) => dbStore.updateTruck(id, { status })}
             onDeleteTruck={(id) => dbStore.deleteTruck(id)}
+            onUpdateTruck={(id, updates) => dbStore.updateTruck(id, updates)}
           />
         )}
 
@@ -157,6 +187,7 @@ function FleetTripManagerApp() {
             onCreateDriver={(data) => dbStore.createDriver(data)}
             onUpdateDriverStatus={(id, status) => dbStore.updateDriver(id, { status })}
             onDeleteDriver={(id) => dbStore.deleteDriver(id)}
+            onUpdateDriver={(id, updates) => dbStore.updateDriver(id, updates)}
           />
         )}
 
@@ -169,16 +200,37 @@ function FleetTripManagerApp() {
             trips={enrichedTrips}
             onDeleteExpense={(id) => dbStore.deleteExpense(id)}
             onDeleteSparePart={(id) => dbStore.deleteSparePart(id)}
+            onSaveEntry={(kind, values, id) => {
+              if (kind === 'expense') {
+                const data = { expense_type: values.category, amount: values.amount, description: values.description, timestamp: values.timestamp };
+                if (id) dbStore.updateExpense(id, data);
+                else dbStore.createExpense({ trip_id: values.trip_id, ...data });
+              } else {
+                const data = { part_name: values.name, price: values.amount, description: values.description, replaced_by: values.replaced_by, timestamp: values.timestamp };
+                if (id) dbStore.updateSparePart(id, data);
+                else dbStore.createSparePart({ trip_id: values.trip_id, ...data });
+              }
+            }}
             onUpdateTruckServiceRecord={(id, updates) => dbStore.updateTruckServiceRecord(id, updates)}
             onSelectTrip={(id) => setSelectedTripId(id)}
           />
         )}
 
         {activeTab === 'schema' && <SchemaStudioView />}
+        </Suspense>
       </main>
 
 
       {/* Modals */}
+      {editingTrip && (
+        <TripEditModal
+          trip={editingTrip}
+          trucks={trucks}
+          drivers={drivers}
+          onSave={(id, updates) => dbStore.updateTrip(id, updates)}
+          onClose={() => setEditingTripId(null)}
+        />
+      )}
       {updatingTrip && (
         <UpdateTripModal
           trip={updatingTrip}
@@ -252,14 +304,45 @@ function FleetTripManagerApp() {
           </div>
         </div>
       )}
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          userName={userName}
+          userEmail={userEmail}
+          profilePictureId={profilePictureId}
+          onSave={async (data) => {
+            try {
+              await updateCurrentUser({
+                name: data.name,
+                phone: data.phone,
+                profilePictureId: data.profilePictureId,
+              });
+              setUserInfo({
+                userName: data.name,
+                userEmail: data.email,
+                userRole,
+                profilePictureId: data.profilePictureId,
+              });
+            } catch (error) {
+              console.error('Failed to update profile:', error);
+              alert('Failed to update profile. Please try again.');
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
 
 export default function App() {
   return (
-    <NeonAuthGate>
-      <FleetTripManagerApp />
-    </NeonAuthGate>
+    <UserProvider>
+      <NeonAuthGate onSignOutReady={setSignOutFn}>
+        <FleetTripManagerApp />
+      </NeonAuthGate>
+    </UserProvider>
   );
 }

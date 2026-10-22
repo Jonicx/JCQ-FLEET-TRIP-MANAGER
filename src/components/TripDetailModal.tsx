@@ -620,7 +620,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                       </label>
                       <input
                         type="number"
-                        step="0.01"
+                        step="1"
                         min="0.01"
                         required
                         placeholder="e.g. 150.00"
@@ -769,7 +769,7 @@ export const TripDetailModal: React.FC<TripDetailModalProps> = ({
                       </label>
                       <input
                         type="number"
-                        step="0.01"
+                        step="1"
                         min="0"
                         required
                         placeholder="e.g. 380.00"

@@ -60,7 +60,7 @@ export const INITIAL_TRUCKS: Truck[] = [
 
 export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
   {
-    id: 's1111111-1111-1111-1111-111111111111',
+    id: 'c1111111-1111-1111-1111-111111111111',
     truck_id: 'b1111111-1111-1111-1111-111111111111',
     record_type: 'Service',
     item_name: 'Scheduled engine oil and filter change',
@@ -71,7 +71,7 @@ export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
     created_at: '2026-09-12T09:30:00Z',
   },
   {
-    id: 's2222222-2222-2222-2222-222222222222',
+    id: 'c2222222-2222-2222-2222-222222222222',
     truck_id: 'b2222222-2222-2222-2222-222222222222',
     record_type: 'Spare Part',
     item_name: 'Front brake pads replacement',
@@ -82,7 +82,7 @@ export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
     created_at: '2026-09-18T14:15:00Z',
   },
   {
-    id: 's3333333-3333-3333-3333-333333333333',
+    id: 'c3333333-3333-3333-3333-333333333333',
     truck_id: 'b3333333-3333-3333-3333-333333333333',
     record_type: 'Service',
     item_name: 'Clutch and transmission inspection',
@@ -93,7 +93,7 @@ export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
     created_at: '2026-09-27T10:00:00Z',
   },
   {
-    id: 's4444444-4444-4444-4444-444444444444',
+    id: 'c4444444-4444-4444-4444-444444444444',
     truck_id: 'b3333333-3333-3333-3333-333333333333',
     record_type: 'Spare Part',
     item_name: 'Alternator replacement',
@@ -104,7 +104,7 @@ export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
     created_at: '2026-09-27T11:45:00Z',
   },
   {
-    id: 's5555555-5555-5555-5555-555555555555',
+    id: 'c5555555-5555-5555-5555-555555555555',
     truck_id: 'b4444444-4444-4444-4444-444444444444',
     record_type: 'Service',
     item_name: 'Wheel alignment and suspension check',
@@ -115,7 +115,7 @@ export const INITIAL_TRUCK_SERVICE_RECORDS: TruckServiceRecord[] = [
     created_at: '2026-08-30T08:20:00Z',
   },
   {
-    id: 's6666666-6666-6666-6666-666666666666',
+    id: 'c6666666-6666-6666-6666-666666666666',
     truck_id: 'b5555555-5555-5555-5555-555555555555',
     record_type: 'Spare Part',
     item_name: 'Two rear tyres replacement',
@@ -182,8 +182,8 @@ export const INITIAL_DRIVERS: Driver[] = [
 
 export const INITIAL_DELAY_LOGS: DelayLog[] = [
   {
-    id: 'l1111111-1111-1111-1111-111111111111',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    id: 'f1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     reason: 'Border customs clearance queue at Malaba OSBP',
     severity: 'High',
     location: 'Malaba One-Stop Border Post',
@@ -191,8 +191,8 @@ export const INITIAL_DELAY_LOGS: DelayLog[] = [
     timestamp: '2026-09-29T14:15:00Z',
   },
   {
-    id: 'l2222222-2222-2222-2222-222222222222',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    id: 'f2222222-2222-2222-2222-222222222222',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     reason: 'Heavy rainstorm near Eldoret causing mountain road slow-down',
     severity: 'Medium',
     location: 'Eldoret Escarpment km 42',
@@ -200,8 +200,8 @@ export const INITIAL_DELAY_LOGS: DelayLog[] = [
     timestamp: '2026-09-30T19:40:00Z',
   },
   {
-    id: 'l3333333-3333-3333-3333-333333333333',
-    trip_id: 't2222222-2222-2222-2222-222222222222',
+    id: 'f3333333-3333-3333-3333-333333333333',
+    trip_id: 'a2222222-2222-2222-2222-222222222222',
     reason: 'Weighbridge calibration inspection at Dodoma bypass',
     severity: 'Low',
     location: 'Dodoma Weighbridge Station #3',
@@ -212,7 +212,7 @@ export const INITIAL_DELAY_LOGS: DelayLog[] = [
 
 export const INITIAL_TRIPS: Trip[] = [
   {
-    id: 't1111111-1111-1111-1111-111111111111',
+    id: 'a1111111-1111-1111-1111-111111111111',
     truck_id: 'b1111111-1111-1111-1111-111111111111',
     driver_id: 'd1111111-1111-1111-1111-111111111111',
     status: 'Ongoing',
@@ -232,7 +232,7 @@ export const INITIAL_TRIPS: Trip[] = [
     updated_at: '2026-09-30T19:40:00Z',
   },
   {
-    id: 't2222222-2222-2222-2222-222222222222',
+    id: 'a2222222-2222-2222-2222-222222222222',
     truck_id: 'b4444444-4444-4444-4444-444444444444',
     driver_id: 'd3333333-3333-3333-3333-333333333333',
     status: 'Ongoing',
@@ -251,7 +251,7 @@ export const INITIAL_TRIPS: Trip[] = [
     updated_at: '2026-09-30T11:20:00Z',
   },
   {
-    id: 't3333333-3333-3333-3333-333333333333',
+    id: 'a3333333-3333-3333-3333-333333333333',
     truck_id: 'b2222222-2222-2222-2222-222222222222',
     driver_id: 'd2222222-2222-2222-2222-222222222222',
     status: 'Completed',
@@ -273,7 +273,7 @@ export const INITIAL_TRIPS: Trip[] = [
     updated_at: '2026-09-24T16:00:00Z',
   },
   {
-    id: 't4444444-4444-4444-4444-444444444444',
+    id: 'a4444444-4444-4444-4444-444444444444',
     truck_id: 'b5555555-5555-5555-5555-555555555555',
     driver_id: 'd5555555-5555-5555-5555-555555555555',
     status: 'Planned',
@@ -294,7 +294,7 @@ export const INITIAL_TRIPS: Trip[] = [
 export const INITIAL_EXPENSES: Expense[] = [
   {
     id: 'e1111111-1111-1111-1111-111111111111',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     expense_type: 'Fuel',
     amount: 1150.0,
     description: 'Diesel 700L refill at TotalEnergies Eldoret Depot',
@@ -303,7 +303,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e2222222-2222-2222-2222-222222222222',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     expense_type: 'Tolls',
     amount: 85.0,
     description: 'Transit Highway Toll Gate Clearance Fee',
@@ -312,7 +312,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e3333333-3333-3333-3333-333333333333',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     expense_type: 'Police/Bribes',
     amount: 45.0,
     description: 'Highway patrol checkpoint inspection clearance cash payment',
@@ -321,7 +321,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e4444444-4444-4444-4444-444444444444',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     expense_type: 'Food',
     amount: 60.0,
     description: 'Driver and assistant turnboy meals stipend (3 days)',
@@ -330,7 +330,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e5555555-5555-5555-5555-555555555555',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     expense_type: 'Other',
     amount: 35.0,
     description: 'Secure overnight truck park staging in Nakuru',
@@ -339,7 +339,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e6666666-6666-6666-6666-666666666666',
-    trip_id: 't2222222-2222-2222-2222-222222222222',
+    trip_id: 'a2222222-2222-2222-2222-222222222222',
     expense_type: 'Fuel',
     amount: 920.0,
     description: '550L Diesel pump refill at Morogoro interchange',
@@ -348,7 +348,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e7777777-7777-7777-7777-777777777777',
-    trip_id: 't2222222-2222-2222-2222-222222222222',
+    trip_id: 'a2222222-2222-2222-2222-222222222222',
     expense_type: 'Tolls',
     amount: 65.0,
     description: 'Interstate highway transit toll receipt',
@@ -357,7 +357,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e8888888-8888-8888-8888-888888888888',
-    trip_id: 't2222222-2222-2222-2222-222222222222',
+    trip_id: 'a2222222-2222-2222-2222-222222222222',
     expense_type: 'Police/Bribes',
     amount: 30.0,
     description: 'Informal road check clearance at rural bypass',
@@ -366,7 +366,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'e9999999-9999-9999-9999-999999999999',
-    trip_id: 't3333333-3333-3333-3333-333333333333',
+    trip_id: 'a3333333-3333-3333-3333-333333333333',
     expense_type: 'Fuel',
     amount: 480.0,
     description: 'Roundtrip diesel fuel refill Kigali - Rubavu',
@@ -375,7 +375,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
   {
     id: 'eaa11111-1111-1111-1111-111111111111',
-    trip_id: 't3333333-3333-3333-3333-333333333333',
+    trip_id: 'a3333333-3333-3333-3333-333333333333',
     expense_type: 'Food',
     amount: 40.0,
     description: 'Driver subsistence meals allowance',
@@ -386,8 +386,8 @@ export const INITIAL_EXPENSES: Expense[] = [
 
 export const INITIAL_SPARE_PARTS: SparePart[] = [
   {
-    id: 's1111111-1111-1111-1111-111111111111',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    id: 'c1111111-1111-1111-1111-111111111111',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     part_name: 'Heavy Duty Drive Axle Tire (315/80R22.5)',
     price: 380.0,
     description: 'Emergency tire blowout replacement after sharp iron debris on highway',
@@ -396,8 +396,8 @@ export const INITIAL_SPARE_PARTS: SparePart[] = [
     created_at: '2026-09-30T15:50:00Z',
   },
   {
-    id: 's2222222-2222-2222-2222-222222222222',
-    trip_id: 't1111111-1111-1111-1111-111111111111',
+    id: 'c2222222-2222-2222-2222-222222222222',
+    trip_id: 'a1111111-1111-1111-1111-111111111111',
     part_name: 'Air Brake Hose Coupling Valve',
     price: 45.0,
     description: 'Replaced leaking pressure air line coupling valve to restore brake pressure',
@@ -406,8 +406,8 @@ export const INITIAL_SPARE_PARTS: SparePart[] = [
     created_at: '2026-09-30T17:25:00Z',
   },
   {
-    id: 's3333333-3333-3333-3333-333333333333',
-    trip_id: 't2222222-2222-2222-2222-222222222222',
+    id: 'c3333333-3333-3333-3333-333333333333',
+    trip_id: 'a2222222-2222-2222-2222-222222222222',
     part_name: 'Fan Belt & Alternator Tensioner',
     price: 110.0,
     description: 'Squeaking fan belt snapped on climb, replaced along with tensioner assembly',

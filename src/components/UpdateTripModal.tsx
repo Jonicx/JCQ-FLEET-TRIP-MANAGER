@@ -569,7 +569,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                       <div className="relative">
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0.01"
                           required
                           placeholder="0.00"
@@ -781,7 +781,7 @@ export const UpdateTripModal: React.FC<UpdateTripModalProps> = ({
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-slate-400 text-xs">Tsh</span>
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0"
                           required
                           placeholder="0.00"

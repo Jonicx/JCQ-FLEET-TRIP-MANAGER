@@ -583,7 +583,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                   <input
                     type="number"
                     min="1"
-                    step="0.01"
+                    step="1"
                     required
                     placeholder="e.g. 3200.00"
                     value={budgetAllocated}
@@ -605,7 +605,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="1"
                     required
                     placeholder="e.g. 450.00"
                     value={driverPay}
@@ -707,7 +707,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                       <input
                         type="number"
                         min="0.01"
-                        step="0.01"
+                        step="1"
                         required
                         value={exp.amount}
                         onChange={(e) => handleUpdateExpense(idx, 'amount', e.target.value)}
@@ -794,7 +794,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                       <input
                         type="number"
                         min="0"
-                        step="0.01"
+                        step="1"
                         required
                         value={sp.price}
                         onChange={(e) => handleUpdateSparePart(idx, 'price', e.target.value)}

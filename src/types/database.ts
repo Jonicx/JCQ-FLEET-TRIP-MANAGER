@@ -129,6 +129,8 @@ export interface Invoice {
   issued_at: string;
   due_at: string;
   created_at: string;
+  voided_at?: string;
+  void_reason?: string;
 }
 
 export type PaymentMethod = 'Cash' | 'Bank transfer' | 'Mobile money' | 'Cheque' | 'Other';
@@ -142,6 +144,8 @@ export interface Payment {
   reference?: string;
   notes?: string;
   created_at: string;
+  reversed_at?: string;
+  reversal_reason?: string;
 }
 
 export type AuditEntityType =
@@ -152,7 +156,10 @@ export type AuditEntityType =
   | 'invoice'
   | 'payment'
   | 'audit settings'
-  | 'database';
+  | 'database'
+  | 'truck'
+  | 'driver'
+  | 'team member';
 
 export interface AuditLog {
   id: string;

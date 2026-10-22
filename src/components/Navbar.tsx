@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Truck as TruckIcon,
   Navigation2,
@@ -11,6 +11,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { DatabaseStats } from '../types/database.ts';
+import { UserProfileDropdown } from './UserProfileDropdown.tsx';
+import { GREETINGS } from '../constants/profilePictures.ts';
 
 interface NavbarProps {
   activeTab: string;
@@ -19,6 +21,12 @@ interface NavbarProps {
   onResetDb: () => void;
   onOpenNewTripModal: () => void;
   isSticky?: boolean;
+  isAdmin?: boolean;
+  userName?: string;
+  userEmail?: string;
+  profilePictureId?: string;
+  onSignOut?: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -28,7 +36,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   onResetDb,
   onOpenNewTripModal,
   isSticky = true,
+  isAdmin = true,
+  userName = '',
+  userEmail = '',
+  profilePictureId,
+  onSignOut,
+  onOpenProfile,
 }) => {
+  const [greeting, setGreeting] = useState(GREETINGS[0]);
+
+  useEffect(() => {
+    // Rotate greeting on mount
+    const randomIndex = Math.floor(Math.random() * GREETINGS.length);
+    setGreeting(GREETINGS[randomIndex]);
+  }, []);
   const navItems = [
     { id: 'dashboard', label: 'Operations', icon: LayoutDashboard },
     { id: 'admin', label: 'Admin', icon: BarChart3 },
@@ -36,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'trucks', label: 'Truck Fleet', icon: TruckIcon, badge: stats.totalTrucks },
     { id: 'drivers', label: 'Drivers', icon: Users, badge: stats.totalDrivers },
     { id: 'expenses', label: 'Expenses & Services', icon: Receipt },
-  ];
+  ].filter((item) => isAdmin || item.id !== 'admin');
 
   return (
     <header className={`${isSticky ? 'sticky' : 'relative'} top-0 z-40 bg-slate-900 border-b rounded-br-3xl sm:rounded-b-3xl border-slate-800 backdrop-blur-md text-white shadow-lg shadow-slate-900/40`}>
@@ -44,11 +65,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-            <div className="flex flex-row items-start space-x-2">
-              <span className="font-extrabold text-md tracking-tight text-white">JCQ</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold border border-amber-500/30 shadow-md shadow-orange-500/20">
-                Enterprise
-              </span>
+            <div className="flex flex-col items-start space-y-0.5">
+              <div className="flex flex-row items-start space-x-2">
+                <span className="font-extrabold text-md tracking-tight text-white">JCQ</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold border border-amber-500/30 shadow-md shadow-orange-500/20">
+                  Enterprise
+                </span>
+              </div>
+              {userName && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-[10px] text-slate-400">{greeting}</span>
+                  <span className="text-[10px] font-semibold text-slate-300">{userName}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -97,6 +126,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Navigation2 className="h-3.5 w-3.5 fill-current" />
               <span>Plan Trip</span>
             </button>
+            {onSignOut && onOpenProfile && (
+              <UserProfileDropdown
+                userName={userName}
+                userEmail={userEmail}
+                profilePictureId={profilePictureId}
+                onSignOut={onSignOut}
+                onOpenProfile={onOpenProfile}
+              />
+            )}
           </div>
         </div>
 

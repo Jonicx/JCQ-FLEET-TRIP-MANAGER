@@ -11,6 +11,7 @@ import {
   Phone,
   FileText,
   AlertCircle,
+  Pencil,
 } from 'lucide-react';
 import { Driver, DriverStatus } from '../types/database.ts';
 
@@ -19,6 +20,7 @@ interface DriversViewProps {
   onCreateDriver: (driver: Omit<Driver, 'id' | 'created_at' | 'updated_at'>) => void;
   onUpdateDriverStatus: (id: string, status: DriverStatus) => void;
   onDeleteDriver: (id: string) => void;
+  onUpdateDriver: (id: string, updates: Partial<Omit<Driver, 'id' | 'created_at' | 'updated_at'>>) => void;
 }
 
 export const DriversView: React.FC<DriversViewProps> = ({
@@ -26,7 +28,9 @@ export const DriversView: React.FC<DriversViewProps> = ({
   onCreateDriver,
   onUpdateDriverStatus,
   onDeleteDriver,
+  onUpdateDriver,
 }) => {
+  const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | DriverStatus>('All');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -52,20 +56,39 @@ export const DriversView: React.FC<DriversViewProps> = ({
     e.preventDefault();
     setErrorMsg(null);
     try {
-      onCreateDriver({
+      const payload = {
         full_name: fullName.trim(),
         license_number: licenseNumber.trim().toUpperCase(),
         phone: phone.trim(),
         status,
         experience_years: parseInt(experienceYears) || 1,
-      });
+      };
+      if (editingDriverId) {
+        const { status: _status, ...details } = payload;
+        const current = drivers.find((driver) => driver.id === editingDriverId);
+        onUpdateDriver(editingDriverId, current?.status === 'On Trip' ? details : payload);
+      } else {
+        onCreateDriver(payload);
+      }
+      setEditingDriverId(null);
       setFullName('');
       setLicenseNumber('');
       setPhone('');
       setShowAddModal(false);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to create driver.');
+      setErrorMsg(err.message || (editingDriverId ? 'Failed to update driver.' : 'Failed to create driver.'));
     }
+  };
+
+  const openEditDriver = (driver: Driver) => {
+    setErrorMsg(null);
+    setEditingDriverId(driver.id);
+    setFullName(driver.full_name);
+    setLicenseNumber(driver.license_number);
+    setPhone(driver.phone);
+    setStatus(driver.status);
+    setExperienceYears(String(driver.experience_years || 1));
+    setShowAddModal(true);
   };
 
   const handleDelete = (id: string) => {
@@ -96,6 +119,11 @@ export const DriversView: React.FC<DriversViewProps> = ({
         <button
           onClick={() => {
             setErrorMsg(null);
+            setEditingDriverId(null);
+            setFullName('');
+            setLicenseNumber('');
+            setPhone('');
+            setStatus('Available');
             setShowAddModal(true);
           }}
           className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold transition shadow-sm self-start sm:self-auto"
@@ -142,7 +170,41 @@ export const DriversView: React.FC<DriversViewProps> = ({
 
       {/* Drivers Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto pb-1 [scrollbar-width:thin]">
+        <ul className="divide-y divide-slate-100 md:hidden">
+          {filteredDrivers.map((driver) => (
+            <li key={driver.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-900">{driver.full_name}</p>
+                  <p className="font-mono text-xs text-slate-500">{driver.license_number}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  driver.status === 'Available' ? 'bg-emerald-100 text-emerald-800' : driver.status === 'On Trip' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700'
+                }`}>{driver.status}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                <div><dt className="text-slate-500">Phone</dt><dd><a href={`tel:${driver.phone}`} className="font-semibold text-blue-700">{driver.phone}</a></dd></div>
+                <div><dt className="text-slate-500">Experience</dt><dd className="font-semibold text-slate-800">{driver.experience_years || 1} Years</dd></div>
+              </dl>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {driver.status !== 'On Trip' && (
+                  <button
+                    type="button"
+                    onClick={() => onUpdateDriverStatus(driver.id, driver.status === 'Off Duty' ? 'Available' : 'Off Duty')}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  >
+                    {driver.status === 'Off Duty' ? 'Set Available' : 'Set Off Duty'}
+                  </button>
+                )}
+                <button type="button" onClick={() => openEditDriver(driver)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Edit</button>
+                <button type="button" onClick={() => handleDelete(driver.id)} aria-label={`Delete ${driver.full_name}`} className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto pb-1 [scrollbar-width:thin] md:block">
           <table className="w-full min-w-[960px] text-left text-[13px] text-slate-600 md:min-w-0 md:text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-bold tracking-wider md:text-[10px]">
               <tr>
@@ -205,6 +267,15 @@ export const DriversView: React.FC<DriversViewProps> = ({
                       )}
 
                       <button
+                        type="button"
+                        onClick={() => openEditDriver(driver)}
+                        title={`Edit ${driver.full_name}`}
+                        aria-label={`Edit ${driver.full_name}`}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => handleDelete(driver.id)}
                         title="Delete Driver (Protected by FK ON DELETE RESTRICT)"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
@@ -227,7 +298,7 @@ export const DriversView: React.FC<DriversViewProps> = ({
             <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-amber-500" />
-                <h3 className="text-sm font-bold">Register Commercial Driver</h3>
+                <h3 className="text-sm font-bold">{editingDriverId ? 'Edit Driver' : 'Register Commercial Driver'}</h3>
               </div>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white">
                 <X className="h-4 w-4" />
@@ -287,12 +358,14 @@ export const DriversView: React.FC<DriversViewProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                    Initial Status
+                    {editingDriverId ? 'Status' : 'Initial Status'}
                   </label>
                   <select
                     value={status}
+                    disabled={Boolean(editingDriverId) && status === 'On Trip'}
+                    title={editingDriverId && status === 'On Trip' ? 'Status changes automatically when the trip is completed.' : undefined}
                     onChange={(e) => setStatus(e.target.value as DriverStatus)}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 disabled:bg-slate-100 disabled:text-slate-500"
                   >
                     <option value="Available">Available</option>
                     <option value="Off Duty">Off Duty</option>
@@ -327,7 +400,7 @@ export const DriversView: React.FC<DriversViewProps> = ({
                   type="submit"
                   className="px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition"
                 >
-                  Save Driver
+                  {editingDriverId ? 'Save Changes' : 'Save Driver'}
                 </button>
               </div>
             </form>

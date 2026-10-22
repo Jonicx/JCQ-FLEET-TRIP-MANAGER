@@ -14,6 +14,7 @@ import {
   Eye,
   MapPin,
   Wrench,
+  Pencil,
 } from 'lucide-react';
 import { EnrichedTrip, TripStatus } from '../types/database.ts';
 import { formatTsh } from '../utils/currency.ts';
@@ -25,6 +26,7 @@ interface TripsViewProps {
   onOpenNewTripModal: () => void;
   onUpdateTripStatus: (tripId: string, status: TripStatus) => void;
   onDeleteTrip: (tripId: string) => void;
+  onEditTrip?: (tripId: string) => void;
 }
 
 export const TripsView: React.FC<TripsViewProps> = ({
@@ -34,6 +36,7 @@ export const TripsView: React.FC<TripsViewProps> = ({
   onOpenNewTripModal,
   onUpdateTripStatus,
   onDeleteTrip,
+  onEditTrip,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | TripStatus>('All');
@@ -130,7 +133,59 @@ export const TripsView: React.FC<TripsViewProps> = ({
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {filteredTrips.map((trip) => (
+              <li key={trip.id} className="p-4">
+                <button type="button" onClick={() => onSelectTrip(trip.id)} className="block w-full text-left">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-900">{trip.origin.split(',')[0]} → {trip.destination.split(',')[0]}</p>
+                      <p className="truncate text-xs text-slate-500">{trip.cargo_type || 'General Cargo'}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      trip.status === 'Ongoing' ? 'bg-blue-50 text-blue-700' : trip.status === 'Planned' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+                    }`}>{trip.status}</span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div><dt className="text-slate-500">Truck</dt><dd className="font-semibold text-slate-800">{trip.truck?.license_plate || 'Unassigned'}</dd></div>
+                    <div><dt className="text-slate-500">Driver</dt><dd className="truncate font-semibold text-slate-800">{trip.driver?.full_name || 'Unassigned'}</dd></div>
+                    <div><dt className="text-slate-500">Dates</dt><dd className="text-slate-700">{new Date(trip.scheduled_start).toLocaleDateString()} – {new Date(trip.scheduled_end).toLocaleDateString()}</dd></div>
+                    <div>
+                      <dt className="text-slate-500">{trip.status === 'Completed' ? 'Variance' : 'Spent / budget'}</dt>
+                      <dd className={`font-mono font-bold tabular-nums ${trip.status === 'Completed' ? (trip.profit_loss >= 0 ? 'text-emerald-600' : 'text-rose-600') : trip.is_over_budget ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {trip.status === 'Completed'
+                          ? `${trip.profit_loss >= 0 ? '+' : '-'}${formatTsh(Math.abs(trip.profit_loss))}`
+                          : `${formatTsh(trip.total_spent)} / ${formatTsh(trip.budget_allocated)}`}
+                      </dd>
+                    </div>
+                  </dl>
+                  {trip.delay_logs.length > 0 && (
+                    <span className="mt-2 inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                      <AlertTriangle className="h-3 w-3" />{trip.delay_logs.length} delay{trip.delay_logs.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {trip.status === 'Planned' && (
+                    <button type="button" onClick={() => onUpdateTripStatus(trip.id, 'Ongoing')} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-blue-50 text-blue-700 hover:bg-blue-100">Start trip</button>
+                  )}
+                  {trip.status === 'Ongoing' && (
+                    <button type="button" onClick={() => (onOpenUpdateModal ? onOpenUpdateModal(trip.id) : onSelectTrip(trip.id))} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-blue-600 text-white hover:bg-blue-500">Update trip</button>
+                  )}
+                  {trip.status === 'Ongoing' && (
+                    <button type="button" onClick={() => setTripToComplete(trip)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-emerald-600 text-white hover:bg-emerald-500">Complete</button>
+                  )}
+                  {trip.status !== 'Completed' && onEditTrip && (
+                    <button type="button" onClick={() => onEditTrip(trip.id)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Edit</button>
+                  )}
+                  <button type="button" onClick={() => setTripToDelete(trip)} aria-label="Delete trip" className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1120px] text-left text-[13px] text-slate-600 md:min-w-0 md:text-xs">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-bold tracking-wider md:text-[10px]">
                 <tr>
@@ -310,6 +365,18 @@ export const TripsView: React.FC<TripsViewProps> = ({
                             >
                               <CheckCircle className="h-3.5 w-3.5" />
                               <span>Complete</span>
+                            </button>
+                          )}
+
+                          {trip.status !== 'Completed' && onEditTrip && (
+                            <button
+                              type="button"
+                              onClick={() => onEditTrip(trip.id)}
+                              title="Edit trip details"
+                              aria-label="Edit trip details"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
                             </button>
                           )}
 

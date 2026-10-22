@@ -30,6 +30,7 @@ interface TrucksViewProps {
   ) => void;
   onUpdateTruckStatus: (id: string, status: TruckStatus) => void;
   onDeleteTruck: (id: string) => void;
+  onUpdateTruck: (id: string, updates: Partial<Omit<Truck, 'id' | 'created_at' | 'updated_at'>>) => void;
 }
 
 export const TrucksView: React.FC<TrucksViewProps> = ({
@@ -41,7 +42,9 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
   onUpdateServiceRecord,
   onUpdateTruckStatus,
   onDeleteTruck,
+  onUpdateTruck,
 }) => {
+  const [editingTruckId, setEditingTruckId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | TruckStatus>('All');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -78,20 +81,40 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
     e.preventDefault();
     setErrorMsg(null);
     try {
-      onCreateTruck({
+      const payload = {
         license_plate: licensePlate.trim().toUpperCase(),
         model: model.trim(),
         status,
         year: parseInt(year) || undefined,
         capacity_tons: parseFloat(capacityTons) || undefined,
         current_mileage: parseInt(currentMileage) || 0,
-      });
+      };
+      if (editingTruckId) {
+        const { status: _status, ...details } = payload;
+        const current = trucks.find((truck) => truck.id === editingTruckId);
+        onUpdateTruck(editingTruckId, current?.status === 'On Trip' ? details : payload);
+      } else {
+        onCreateTruck(payload);
+      }
+      setEditingTruckId(null);
       setLicensePlate('');
       setModel('');
       setShowAddModal(false);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to create truck.');
+      setErrorMsg(err.message || (editingTruckId ? 'Failed to update truck.' : 'Failed to create truck.'));
     }
+  };
+
+  const openEditTruck = (truck: Truck) => {
+    setErrorMsg(null);
+    setEditingTruckId(truck.id);
+    setLicensePlate(truck.license_plate);
+    setModel(truck.model);
+    setStatus(truck.status);
+    setYear(truck.year ? String(truck.year) : '');
+    setCapacityTons(truck.capacity_tons ? String(truck.capacity_tons) : '');
+    setCurrentMileage(String(truck.current_mileage || 0));
+    setShowAddModal(true);
   };
 
   const handleDelete = (id: string) => {
@@ -226,6 +249,10 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
         <button
           onClick={() => {
             setErrorMsg(null);
+            setEditingTruckId(null);
+            setLicensePlate('');
+            setModel('');
+            setStatus('Available');
             setShowAddModal(true);
           }}
           className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold transition shadow-sm self-start sm:self-auto"
@@ -272,7 +299,42 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
 
       {/* Trucks Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        <ul className="divide-y divide-slate-100 md:hidden">
+          {filteredTrucks.map((truck) => (
+            <li key={truck.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-sm font-bold text-slate-900">{truck.license_plate}</p>
+                  <p className="truncate text-xs text-slate-500">{truck.model}{truck.year ? ` · ${truck.year}` : ''}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  truck.status === 'Available' ? 'bg-emerald-100 text-emerald-800' : truck.status === 'On Trip' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                }`}>{truck.status}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                <div><dt className="text-slate-500">Capacity</dt><dd className="font-semibold text-slate-800">{truck.capacity_tons ? `${truck.capacity_tons} Tons` : '-'}</dd></div>
+                <div><dt className="text-slate-500">Mileage</dt><dd className="font-mono text-slate-800">{(truck.current_mileage || 0).toLocaleString()} km</dd></div>
+              </dl>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {truck.status !== 'On Trip' && (
+                  <button
+                    type="button"
+                    onClick={() => (truck.status === 'Maintenance' ? onUpdateTruckStatus(truck.id, 'Available') : openServiceModal(truck.id))}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  >
+                    {truck.status === 'Maintenance' ? 'Finish Service' : 'Service Truck'}
+                  </button>
+                )}
+                <button type="button" onClick={() => openServiceModal(truck.id, false)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">History</button>
+                <button type="button" onClick={() => openEditTruck(truck)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-slate-100 text-slate-700 hover:bg-slate-200">Edit</button>
+                <button type="button" onClick={() => handleDelete(truck.id)} aria-label={`Delete ${truck.license_plate}`} className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[960px] text-left text-[13px] text-slate-600 md:min-w-0 md:text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-bold tracking-wider md:text-[10px]">
               <tr>
@@ -345,6 +407,15 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
                       </button>
 
                       <button
+                        type="button"
+                        onClick={() => openEditTruck(truck)}
+                        title={`Edit ${truck.license_plate}`}
+                        aria-label={`Edit ${truck.license_plate}`}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => handleDelete(truck.id)}
                         title="Delete Truck (Protected by FK ON DELETE RESTRICT)"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
@@ -367,7 +438,7 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
             <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <TruckIcon className="h-4 w-4 text-amber-500" />
-                <h3 className="text-sm font-bold">Register New Fleet Truck</h3>
+                <h3 className="text-sm font-bold">{editingTruckId ? 'Edit Fleet Truck' : 'Register New Fleet Truck'}</h3>
               </div>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white">
                 <X className="h-4 w-4" />
@@ -413,12 +484,14 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                    Initial Status
+                    {editingTruckId ? 'Status' : 'Initial Status'}
                   </label>
                   <select
                     value={status}
+                    disabled={Boolean(editingTruckId) && status === 'On Trip'}
+                    title={editingTruckId && status === 'On Trip' ? 'Status changes automatically when the trip is completed.' : undefined}
                     onChange={(e) => setStatus(e.target.value as TruckStatus)}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 disabled:bg-slate-100 disabled:text-slate-500"
                   >
                     <option value="Available">Available</option>
                     <option value="Maintenance">Maintenance</option>
@@ -482,7 +555,7 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
                   type="submit"
                   className="px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition"
                 >
-                  Save Truck
+                  {editingTruckId ? 'Save Changes' : 'Save Truck'}
                 </button>
               </div>
             </form>
@@ -595,7 +668,7 @@ export const TrucksView: React.FC<TrucksViewProps> = ({
                       id="service-price"
                       type="number"
                       min="0.01"
-                      step="0.01"
+                      step="1"
                       required
                       placeholder="e.g. 150000"
                       value={servicePrice}
